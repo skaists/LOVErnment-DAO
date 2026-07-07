@@ -52,7 +52,11 @@ redirects to an auth-walled Google Drive viewer; mine the PDF via the frozen
 `gofractally/fractally` repo or direct retrieval. Targets: exact Respect
 weights (Fibonacci schedule), in-circle consensus threshold, team-fractal
 rules, council/averaging windows. **All such parameters are UNVERIFIED until
-mined.**
+mined.** Status amended 2026-07-07: Eden leg CLOSED — see
+docs/research/D-2 (this tree), contract-pinned. Whitepaper leg OPEN —
+founder-hands retrieval pending; Respect schedule 1,2,3,5,8,13
+corroborated (fractally blog + Hive-community secondary) with the 55→5
+source conflict UNRESOLVED until the PDF.
 
 **Not imported:** fractally's own token/exchange economics; any runtime
 dependency on fractally software.
@@ -75,7 +79,23 @@ the mechanism, reimplement; never adopt).
   budgets as a team-funding shape.
 
 **Status of specifics:** repo-pinned only, not yet source-mined — docketed to
-Cowork. **Treat all Eden process parameters as UNVERIFIED until mined.**
+Cowork. CLOSED 2026-07-07: mechanics contract-pinned at gofractally/Eden
+@ 2d779d476f8bb6bc14dc30eadae9f7d70264b6fc — see docs/research/D-2.
+Summary: groups computed per body (max 12, within-round sizes differ by
+≤1; canonical mid-branch {5,6,…,6,remainder}); winner requires strictly
+>2/3 of votes cast AND own self-vote (consent-to-serve in the
+arithmetic); budget 5% per 30 days, equal per-rank tranches, per-head
+rising with rank; board authority 2/3+1; elections trigger at +10%
+membership. Dual-instrument byte cross-check beside D-2 (lead raw-fetch
++ Code clone/blob, all four identical):
+4c7a838899b9822dee00cb901f06fbb0f1b06a2bf75e8cfd01fb00688046f6fd
+elections.hpp ·
+932976eef02f84ffed08af29d659b365bdada1c5dfbfaa5ac02bbbdfdec2c2f7
+elections.cpp ·
+252696f865d5b9b5918089e8467fc032bed4aa022fd8b0182cef4d7c81d211a3
+distributions.cpp ·
+7201708b9de0d80841164ec32c8adedd2261921268412e9d5277e5608ff23c5f
+distributions.hpp
 
 ## S-3 · eosDAC — prior art, inverted (banked 2026-07-07, identity-day session)
 
@@ -106,8 +126,26 @@ Status: prior art and parallel evolution of the serverless-web3 thesis.
 **Ruling stance: the architecture is closed.** No psibase dependency, ever;
 monitored for mechanism ideas only.
 
+## skaists divergences from headwater (v1.1)
+
+(i) Circles are decision AND co-creation containers: emission-bearing
+attestation of member milestones rides the same rotating circles that
+govern — the beyond-headwater fusion. Full capture, risk findings (2 RED
+/ 4 YELLOW / 2 QUESTION), and candidate invariants live in the kernel
+backlog: anchor "Fractal co-creation". (ii) Ranking consensus 4/6
+inherited from the headwater; the ATTESTATION quorum and voter set are
+UNRULED — founder-gate A-1. (iii) Instrument name founder-ruled
+"bLoveRai stock" — kernel backlog anchor "bLoveRai". (iv) Circle size:
+NO divergence — fractally original design by founder ruling 2026-07-07,
+on evidence (supersession history at the kernel's "Fractal co-creation"
+capture). (v) The +1 seat above the perfect senary cascade remains
+UNNAMED, founder-gated.
+
 ---
 
 *Lineage banked 2026-07-07 by the lead seat from the live public record.
 Liveness dates above follow the verified-then-stale principle: true at
 verification time, aging since.*
+
+*v1.1 — 2026-07-07, amended by lead dispatch, landed by Code; v1 digest
+ac9105c7… preserved in git history as the genesis text.*
