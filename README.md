@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/skaists-logo.jpg" alt="skaists mandala — green to teal to a purple center" width="220">
+</p>
+
 # skaists · LOVErnment-DAO
 
 **skaists** — Latvian for *"beautiful."* The genesis LOVErnment of the Beehive
