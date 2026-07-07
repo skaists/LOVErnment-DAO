@@ -1,0 +1,12 @@
+[package]
+name = "lovernment-core"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+description = "skaists LOVErnment core — first out-of-tree consumer of the bNature kernel (scaffold; governance logic is the next lap)"
+
+[dependencies]
+escrow-core = { git = "https://github.com/beehive-nature/beehive-nature", tag = "kernel-v0.1.0" }
+
+[dev-dependencies]
+time = { version = "0.3", features = ["macros"] }

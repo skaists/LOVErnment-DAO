@@ -1,0 +1,12 @@
+# skaists / LOVErnment-DAO — governance + dApp tree of the genesis
+# LOVErnment. First out-of-tree consumer of the Beehive Nature Reserve
+# kernel (docs/governance-lineage.md carries the lineage).
+[workspace]
+resolver = "2"
+members = [
+    "crates/lovernment-core",
+]
+
+[workspace.package]
+edition = "2021"
+license = "AGPL-3.0-only"
