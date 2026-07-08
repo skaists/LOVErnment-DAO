@@ -1,5 +1,13 @@
 # STATUS — honest done / not-done ledger
 
+**PUBLIC as of 2026-07-08, demo live** — visibility flipped
+founder-hands after founder eyes on the front door; independently
+verified by anonymous fetch on two instruments (lead + Code seat).
+GLM consumption audit of the demo diff: QUEUED (docket
+`glm-demo-docket-28b8fd8` prepared and digest-stamped at the Code
+seat's pen) — publication does not skip audit, audit does not block
+publication.
+
 **The tree is the relay of record.** This file, not any session's
 memory, is the authoritative account of where `main` sits. Every entry
 names its commit; anything not recorded here as done is not done.
@@ -29,6 +37,12 @@ Sibling ledger: the kernel's STATUS.md at
   authoritative digest `fd0d2b11…` @ 7,551 B / 102 lines.
 - `6a3b987` — fractal-cascade geometry demo: source-pinned,
   deterministic, tested; emission absent by design.
+- `edbeccd` — front door: STATUS ledger, public README, security
+  policy.
+- `1a34105` — chair naming: the Royal Beehive Intelligence seat (RBI),
+  occupant at genesis QueenBee, across demo/README/STATUS.
+- `28b8fd8` — F-V1 to RULED (voice, not vote) + go-public sweep closed
+  by founder ruling (five hex lines PUBLIC-CONSTANT, accept-as-is).
 
 ## What runs
 
