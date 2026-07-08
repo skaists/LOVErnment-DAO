@@ -91,8 +91,9 @@ fn main() {
     }
     println!();
     println!(
-        "the machine chair (QueenBee) holds no vote and enters no round, \
-         which is why the human cascade is perfect (cap {CAP} = 6^5 + 1)"
+        "the Royal Beehive Intelligence seat (RBI; occupant at genesis: \
+         QueenBee) holds no vote and enters no round, which is why the \
+         human cascade is perfect (cap {CAP} = 6^5 + 1)"
     );
     println!(
         "emission and attestation are absent by design — those captures are \

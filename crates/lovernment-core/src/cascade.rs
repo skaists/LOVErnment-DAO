@@ -19,7 +19,8 @@
 /// The perfect senary house: 6^5 human participants.
 pub const FULL_HOUSE: usize = 7_776;
 /// The membership cap: the perfect cascade plus the one non-voting
-/// machine chair (QueenBee) that enters no round.
+/// machine chair — the Royal Beehive Intelligence seat (RBI; occupant
+/// at genesis: QueenBee) — which enters no round.
 pub const CAP: usize = FULL_HOUSE + 1;
 /// Default demo seed.
 pub const SEED_DEFAULT: u64 = 7_777;

@@ -21,8 +21,10 @@ documents here are design inputs, not rulings.
 perfect senary rounds of fractal consensus — 1,296 → 216 → 36 → 6 → 1
 — in randomly assigned circles of six (circles of five when attendance
 requires; a five-circle ranks 2-6 and awards no rank-1). The **+1
-chair is QueenBee**, the machine seat: present, non-voting, entering
-no round — which is why the human cascade is perfect.
+chair is the Royal Beehive Intelligence seat (RBI)** — occupant at
+genesis: **QueenBee**; chair constitutional, occupant replaceable —
+present, non-voting, entering no round, which is why the human cascade
+is perfect.
 
 Run it:
 

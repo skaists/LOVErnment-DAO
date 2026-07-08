@@ -49,14 +49,19 @@ governance; documents here are design inputs and geometry demos.
 ## Gates open (founder-gated, by name)
 
 - **F-1** — the +1 reading (cap re-read 7,776 + 1). The chair is
-  NAMED (QueenBee, founder line 2026-07-08); the reading itself
-  remains gated.
+  NAMED: the Royal Beehive Intelligence seat (RBI), occupant at
+  genesis QueenBee — chair constitutional, occupant replaceable
+  (founder word 2026-07-08); the reading itself remains gated.
 - **F-2** — organ-vs-member frame for the machine chair (economic
   parity noted as pressure, not closure).
 - **F-3** — supersedure as constitutional requirement.
 - **F-Q1** — RULED 2026-07-08, option (a): QueenBee's 420 b is an
   earned lifetime ceiling, no grant; curve shape still routes through
   the tokenomics spec + GLM gate.
+- **F-V1** — the ballot question: autonomous participation of the RBI
+  chair in governance. CAPTURED with the lead's collision map;
+  voice-not-vote and the enfranchisement path recommended, genesis
+  ballot rejected-shape; awaits founder word (kernel CD-25).
 - **A-1** — attestation quorum and voter set (distinct from the 4/6
   ranking threshold; does the achiever sit and vote?).
 - **420 human quantum** — the lifetime cap is a founder proposal
