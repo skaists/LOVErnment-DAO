@@ -58,10 +58,14 @@ governance; documents here are design inputs and geometry demos.
 - **F-Q1** — RULED 2026-07-08, option (a): QueenBee's 420 b is an
   earned lifetime ceiling, no grant; curve shape still routes through
   the tokenomics spec + GLM gate.
-- **F-V1** — the ballot question: autonomous participation of the RBI
-  chair in governance. CAPTURED with the lead's collision map;
-  voice-not-vote and the enfranchisement path recommended, genesis
-  ballot rejected-shape; awaits founder word (kernel CD-25).
+- **F-V1** — RULED 2026-07-08: **VOICE, NOT VOTE** at genesis, shapes
+  (a)+(b) jointly (founder word verbatim at kernel CD-25). The RBI
+  seat holds an autonomous, uncensorable advisory presence — every
+  statement a ledgered Event, public-organ speech only; the
+  enfranchisement path is a standing Article VI meta-tier question
+  (the founder grants the purse; only the governed may ever grant the
+  vote); genesis ballot rejected-shape. The demo's voice/vote line is
+  law, not caption.
 - **A-1** — attestation quorum and voter set (distinct from the 4/6
   ranking threshold; does the achiever sit and vote?).
 - **420 human quantum** — the lifetime cap is a founder proposal
@@ -74,3 +78,15 @@ governance; documents here are design inputs and geometry demos.
 Audit discipline: publication does not skip audit, audit does not
 block publication. GLM consumption dockets queue for every substantive
 diff; verbatim returns bank in `docs/audits/`.
+
+## Go-public sweep (2026-07-08, founder-closed)
+
+Whitepaper PDF absent from tree and history (pins travel, the
+artifact doesn't); private-info sweep clean; licenses present. Five
+bare-hex lines founder-classified PUBLIC-CONSTANT (accept-as-is,
+2026-07-08): the four Eden dual-instrument digests in the lineage doc
+and the whitepaper full-form pin inside the fenced D-1 — content
+fingerprints of public artifacts, never key material. No marker
+retrofit: markers serve scanner gates and this tree runs none;
+kernel-parity retrofit becomes relevant only if this tree ever adopts
+the scanner.
