@@ -43,6 +43,13 @@ Sibling ledger: the kernel's STATUS.md at
   occupant at genesis QueenBee, across demo/README/STATUS.
 - `28b8fd8` — F-V1 to RULED (voice, not vote) + go-public sweep closed
   by founder ruling (five hex lines PUBLIC-CONSTANT, accept-as-is).
+- `f596d19` — chain-current. Commits since `28b8fd8`, verbatim from
+  `git log`: `281f1b6` docs(status): R-3 — public as of 2026-07-08,
+  demo live; GLM demo docket queued · `04d69e9` docs(audits): GLM demo
+  docket promoted from the pen — public-tree crossing rung · `f596d19`
+  docs(audits): B-1 — crystal red-team, F-8(c) restatement, demo audit
+  CLEAN banked verbatim. Chain reconciled to ref `f596d19` — 1st-assist
+  succession remedy, first Code session.
 
 ## What runs
 
