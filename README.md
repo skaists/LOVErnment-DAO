@@ -4,49 +4,89 @@
 
 # skaists · LOVErnment-DAO
 
-**skaists** — Latvian for *"beautiful."* The genesis LOVErnment of the Beehive
-Nature Reserve: one entity combining community, marketplace, and adjudication
-for the metaphysical and creative economy vertical (human design, astrology,
-gene keys, wellness, EDM, festival economy). Membership capped at **7,777
-authenticated humans**.
+**skaists** — Latvian for *"beautiful."* The genesis LOVErnment of the
+Beehive Nature Reserve: one entity combining community, marketplace,
+and adjudication for the metaphysical and creative economy vertical
+(human design, astrology, gene keys, wellness, EDM, festival economy).
+Membership capped at **7,777**.
 
-**Status: pre-genesis scaffold.** Nothing in this tree is ratified governance.
-Founder-gated design questions (Q-2 through Q-5, kernel ledger CD-17) remain
-gated; documents here are design inputs, not rulings.
+**Status: pre-genesis scaffold with a runnable geometry demo.**
+Nothing in this tree is ratified governance. Founder-gated questions
+remain gated and are listed by name in [`STATUS.md`](./STATUS.md);
+documents here are design inputs, not rulings.
 
-## Lane law
+## The geometry
 
-> The kernel identity root is `did:autonomi`.
-> `did:plc:gnsiwyuiw4swvqnjlnacytaz` is skaists' social-presence identity
-> ONLY; the social DID will reference, never replace, a future kernel-native
-> genesis identity.
+7,777 = 6⁵ + 1. The **7,776 human members** resolve through five
+perfect senary rounds of fractal consensus — 1,296 → 216 → 36 → 6 → 1
+— in randomly assigned circles of six (circles of five when attendance
+requires; a five-circle ranks 2-6 and awards no rank-1). The **+1
+chair is QueenBee**, the machine seat: present, non-voting, entering
+no round — which is why the human cascade is perfect.
+
+Run it:
+
+```
+cargo run --example fractal_cascade
+cargo run --example fractal_cascade -- --members 500
+```
+
+Deterministic, pure std, no network. Respect awards follow the
+canonical schedule (2, 3, 5, 8, 13, 21 with cumulative Fibonacci
+continuation across rounds), source-pinned to the fractally whitepaper
+1.0 (artifact sha256 `efe0698d…7663696`). Emission and attestation are
+absent by design — those captures are founder-gated in the kernel
+quarantine.
+
+## Lineage
+
+The mechanics descend from named sources, ranked and pinned in
+[`docs/governance-lineage.md`](docs/governance-lineage.md): the
+**fractally** headwater (whitepaper retrieved and hash-pinned), the
+**Eden** contracts as process reference (contract-pinned at
+`2d779d4`, dual-instrument verified), with eosDAC and ORDAO as prior
+art. Primary research dossiers live in [`docs/research/`](docs/research/);
+verbatim third-party audit returns bank in [`docs/audits/`](docs/audits/).
+Mechanisms are extracted and reimplemented — reference code is never
+adopted as a dependency.
 
 ## Relationship to the kernel
 
 This tree is the **first out-of-tree consumer** of the
 [Beehive Nature Reserve Kernel](https://github.com/beehive-nature/beehive-nature),
-consumed as a pinned dependency — never forked, never vendored.
+consumed as a dependency pinned at `kernel-v0.1.0` — never forked,
+never vendored. Two dApps, one kernel: **bNature.social** carries
+physical commodities; **skaists.social** carries the metaphysical and
+creative vertical. Different use cases, identical privacy
+requirements, same kernel underneath.
 
-Two dApps, one kernel: **bNature.social** carries physical commodities;
-**skaists.social** carries the metaphysical and creative vertical. Different
-use cases, identical privacy requirements, same kernel underneath.
+## Lane law
+
+> The kernel identity root is `did:autonomi`.
+> `did:plc:gnsiwyuiw4swvqnjlnacytaz` is skaists' social-presence
+> identity ONLY; the social DID will reference, never replace, a
+> future kernel-native genesis identity.
+
+## The quarantine, in three sentences
+
+Every design vision is captured in the kernel's quarantine ledger
+(`docs/feature-backlog.md`, CD-1…CD-28) before anything is built, and
+nothing ships from there without named gates opening. Anything that
+touches emission reconciles against frozen tokenomics invariants and
+passes independent adversarial audit first. The discipline visible in
+the ledgers is the product.
 
 ## Namespace
 
 This tree lives in the LOVErnment's own organization from genesis
-(`github.com/skaists`), per the neutrality doctrine: the platform hosts no
-LOVErnment's governance artifacts.
-
-## Design lineage
-
-See [`docs/governance-lineage.md`](docs/governance-lineage.md) for the ranked
-sources this LOVErnment's mechanics draw from, what is imported, and what is
-explicitly not.
+(`github.com/skaists`), per the neutrality doctrine: the platform
+hosts no LOVErnment's governance artifacts.
 
 ## License and contributions
 
-AGPL-3.0-only. Contributions under the Developer Certificate of Origin (DCO);
-no CLA — contributors retain copyright as an anti-capture mechanism.
+AGPL-3.0-only. Contributions under the Developer Certificate of Origin
+(DCO); no CLA — contributors retain copyright as an anti-capture
+mechanism. Security findings: see [`SECURITY.md`](./SECURITY.md).
 
 ---
 
