@@ -3,10 +3,10 @@
 **PUBLIC as of 2026-07-08, demo live** — visibility flipped
 founder-hands after founder eyes on the front door; independently
 verified by anonymous fetch on two instruments (lead + Code seat).
-GLM consumption audit of the demo diff: QUEUED (docket
-`glm-demo-docket-28b8fd8` prepared and digest-stamped at the Code
-seat's pen) — publication does not skip audit, audit does not block
-publication.
+GLM consumption audit of the demo diff: RETURNED 2026-07-08, **CLOSED
+— CLEAN** (report banked verbatim in docs/audits/; docket
+`glm-demo-docket-28b8fd8` published in the same home) — publication
+does not skip audit, audit does not block publication.
 
 **The tree is the relay of record.** This file, not any session's
 memory, is the authoritative account of where `main` sits. Every entry
