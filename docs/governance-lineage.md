@@ -53,10 +53,14 @@ redirects to an auth-walled Google Drive viewer; mine the PDF via the frozen
 weights (Fibonacci schedule), in-circle consensus threshold, team-fractal
 rules, council/averaging windows. **All such parameters are UNVERIFIED until
 mined.** Status amended 2026-07-07: Eden leg CLOSED — see
-docs/research/D-2 (this tree), contract-pinned. Whitepaper leg OPEN —
-founder-hands retrieval pending; Respect schedule 1,2,3,5,8,13
-corroborated (fractally blog + Hive-community secondary) with the 55→5
-source conflict UNRESOLVED until the PDF.
+docs/research/D-2 (this tree), contract-pinned. Whitepaper leg CLOSED —
+corrected v1.2, 2026-07-07, on whitepaper retrieval (artifact
+efe0698d…7663696): canonical Round-1 schedule is 2,3,5,8,13,21 (WP
+p.22), cumulative Fibonacci continuation across rounds (pp.22-23),
+amounts relative-by-fractal-consensus (p.17). Both prior candidates
+resolved against; the 55→5 conflict is CLOSED. Remainder rule (short
+groups of five rank 2-6, no rank-1) and averaging windows (12-week
+vote weight; 20-week council/removal/liquidity) now source-pinned.
 
 **Not imported:** fractally's own token/exchange economics; any runtime
 dependency on fractally software.
@@ -149,3 +153,7 @@ verification time, aging since.*
 
 *v1.1 — 2026-07-07, amended by lead dispatch, landed by Code; v1 digest
 ac9105c7… preserved in git history as the genesis text.*
+
+*v1.2 — 2026-07-07, S-1 Respect schedule corrected on whitepaper
+retrieval (canonical 2,3,5,8,13,21; artifact efe0698d…7663696), landed
+by Code.*
