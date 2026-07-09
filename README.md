@@ -97,3 +97,5 @@ mechanism. Security findings: see [`SECURITY.md`](./SECURITY.md).
 ---
 
 Home: [skaists.social](https://skaists.social) · hello@skaists.social
+
+🎧 **Built to this** — [a set of my own making](https://www.youtube.com/playlist?list=PLkUQHd8CpZKngAYcM7R0Zy4d8cGfzzwL5), the soundtrack behind the build.
