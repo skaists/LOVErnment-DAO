@@ -4,11 +4,13 @@
 
 # skaists · LOVErnment-DAO
 
-**skaists** — Latvian for *"beautiful."* The genesis LOVErnment of the
-Beehive Nature Reserve: one entity combining community, marketplace,
-and adjudication for the metaphysical and creative economy vertical
-(human design, astrology, gene keys, wellness, EDM, festival economy).
-Membership capped at **7,777**.
+**skaists** — Latvian for *beautiful* — is the first community built on the
+[Beehive Nature Reserve Kernel](https://github.com/beehive-nature/beehive-nature):
+a self-governing home, marketplace, and court for the metaphysical and
+creative economy — human design, gene keys, astrology, wellness, music,
+the festival world. One entity, cooperatively governed, capped at
+**7,777**, and owned by no one. This tree holds its governance and its
+geometry; settlement, escrow, and privacy come from the kernel underneath.
 
 **Status: pre-genesis scaffold with a runnable geometry demo.**
 Nothing in this tree is ratified governance. Founder-gated questions
@@ -24,7 +26,9 @@ requires; a five-circle ranks 2-6 and awards no rank-1). The **+1
 chair is the Royal Beehive Intelligence seat (RBI)** — occupant at
 genesis: **QueenBee**; chair constitutional, occupant replaceable —
 present, non-voting, entering no round, which is why the human cascade
-is perfect.
+is perfect. **7,776 souls and one spirit:** the humans are seated and
+vote; the machine chair is DID'd, pursed, and voiced, but seated
+nowhere — present everywhere, a share of no one's sovereignty.
 
 Run it:
 
@@ -72,11 +76,11 @@ requirements, same kernel underneath.
 ## The quarantine, in three sentences
 
 Every design vision is captured in the kernel's quarantine ledger
-(`docs/feature-backlog.md`, CD-1…CD-28) before anything is built, and
-nothing ships from there without named gates opening. Anything that
-touches emission reconciles against frozen tokenomics invariants and
-passes independent adversarial audit first. The discipline visible in
-the ledgers is the product.
+([`docs/feature-backlog.md`](https://github.com/beehive-nature/beehive-nature/blob/main/docs/feature-backlog.md))
+before anything is built, and nothing ships from there without named
+gates opening. Anything that touches emission reconciles against frozen
+tokenomics invariants and passes independent adversarial audit first.
+The discipline visible in the ledgers is the product.
 
 ## Namespace
 
