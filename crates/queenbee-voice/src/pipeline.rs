@@ -41,6 +41,12 @@ pub struct PendingEntry {
     pub created_at: String,
 }
 
+pub struct AuditEntry {
+    pub pending: PendingEntry,
+    pub post_uri: Option<String>,
+    pub post_cid: Option<String>,
+}
+
 /// The finalized entry — pending fields plus the pinned post reference.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FinalizedEntry {
@@ -59,6 +65,7 @@ pub struct FinalizedEntry {
 ///   Ok if the finalization succeeded.
 /// - `remove_entry`: delete a pending entry (cleanup on post failure).
 pub trait PdsClient {
+    fn find_entry_by_derivation_input(&self, derivation_input: &str) -> Option<AuditEntry>;
     fn create_pending_entry(&mut self, key: &str, entry: &PendingEntry) -> Result<(), String>;
     fn submit_post(&mut self, text: &str) -> Result<(String, String), String>;
     fn finalize_entry(&mut self, key: &str, uri: &str, cid: &str) -> Result<(), String>;
