@@ -9,4 +9,9 @@ description = "skaists LOVErnment core — first out-of-tree consumer of the bNa
 escrow-core = { git = "https://github.com/beehive-nature/beehive-nature", tag = "kernel-v0.1.0" }
 
 [dev-dependencies]
-time = { version = "0.3", features = ["macros"] }
+time = { version = "0.3", features = ["macros", "parsing"] }
+# D-001 live-PDS round-trip. One new client dependency:
+#   ureq — a blocking HTTP client (rustls TLS, no async runtime) for the XRPC calls.
+# serde_json shapes the JSON request/response bodies (data model, not a network client).
+ureq = { version = "2", features = ["json"] }
+serde_json = "1"
