@@ -1,0 +1,57 @@
+{
+  "lexicon": 1,
+  "id": "social.skaists.alpha.audit.entry",
+  "description": "ALPHA: subject to change. One autonomous utterance by the RBI chair's publishing pipeline, ledgered for public verification. Append-only by construction: a stranger fetches this record, fetches its derivation input, re-hashes, and compares. Every field here exists so that Q-6 (every autonomous post is auditable) is a mechanism, not a promise.",
+  "defs": {
+    "main": {
+      "type": "record",
+      "key": "tid",
+      "description": "One utterance, one entry. The entry is written atomically with the post (VOICE-1 §5.5): persist as pending before submission, finalize with postUri/postCid after. A pending entry whose post failed is removed; a finalized entry is permanent.",
+      "record": {
+        "type": "object",
+        "required": ["derivationInput", "inputDigest", "adapterClass", "adapterDigest", "modelDigest", "promptDigest", "createdAt"],
+        "properties": {
+          "postUri": {
+            "type": "string",
+            "format": "at-uri",
+            "description": "The utterance, pinned. Absent on a pending entry that never finalized; present and permanent on every entry whose post went live."
+          },
+          "postCid": {
+            "type": "string",
+            "format": "cid",
+            "description": "The content ID of the post record, pinning its exact bytes. Absent until finalized."
+          },
+          "derivationInput": {
+            "type": "string",
+            "description": "The signed source the adapter read. For class 1 (TreeLanding): repo@sha. For future classes: at-uri#cid or other verifiable reference."
+          },
+          "inputDigest": {
+            "type": "string",
+            "description": "sha256 hex of the exact input bytes the adapter read. The stranger's verification starts here: fetch the input, re-hash, compare."
+          },
+          "adapterClass": {
+            "type": "string",
+            "description": "Which law produced this speech. Class 1 is 'TreeLanding'. Each class is a founder-gated adapter ratified under Q-8."
+          },
+          "adapterDigest": {
+            "type": "string",
+            "description": "sha256 hex of the adapter's source bytes. Identifies exactly which code derived this utterance — a stranger verifying a post verifies which code produced it."
+          },
+          "modelDigest": {
+            "type": "string",
+            "description": "sha256 of the model weights (A-2). The mind that spoke, pinned and verifiable at load."
+          },
+          "promptDigest": {
+            "type": "string",
+            "description": "sha256 of the system prompt (A-2). The instructions that governed the inference, pinned and verifiable at load."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "datetime",
+            "description": "RFC 3339 witness time — when this entry was written, not when the post was authored."
+          }
+        }
+      }
+    }
+  }
+}
