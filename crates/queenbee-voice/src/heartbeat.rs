@@ -49,8 +49,29 @@ pub fn check_transition(
     last_beat: Duration,
     now: Duration,
 ) -> (HeartbeatState, Option<HeartbeatAuditPayload>) {
-    // STUB — always alive, never transitions. Commit A: red-first baseline.
-    let _ = (last_beat, now);
-    let _ = prev_state;
-    (HeartbeatState::Alive, None)
+    let currently_alive = is_alive(last_beat, now);
+    let current_state = if currently_alive {
+        HeartbeatState::Alive
+    } else {
+        HeartbeatState::Suspended
+    };
+
+    if current_state == prev_state {
+        // No transition — no payload. Not per check, per transition.
+        return (current_state, None);
+    }
+
+    // Exactly one payload per transition.
+    let event = match current_state {
+        HeartbeatState::Suspended => "heartbeat.suspended",
+        HeartbeatState::Alive => "heartbeat.resumed",
+    };
+
+    (
+        current_state,
+        Some(HeartbeatAuditPayload {
+            adapter_class: "system.heartbeat".to_string(),
+            event: event.to_string(),
+        }),
+    )
 }
