@@ -59,7 +59,21 @@ pub fn submit_post(
     counter: &mut dyn DailyCounter,
     heartbeat: &dyn HeartbeatCheck,
 ) -> SubmitResult {
-    // STUB — always accepts. Commit A lands this as red-first baseline.
-    let _ = (repo, counter, heartbeat);
+    // Q-5/VOICE-1 §6 G-B: stale heartbeat suspends all posting.
+    if !heartbeat.is_alive() {
+        return SubmitResult::Stale;
+    }
+
+    // VOICE-1 §6 G-C / Q-8: off-allowlist repos are never posted to.
+    if !CLASS1_ALLOWLIST.contains(&repo) {
+        return SubmitResult::OffAllowlist;
+    }
+
+    // VOICE-1 §6 G-A: hard daily cap of 3.
+    if counter.count_today() >= DAILY_CAP {
+        return SubmitResult::RateLimited;
+    }
+
+    counter.increment();
     SubmitResult::Accepted
 }
