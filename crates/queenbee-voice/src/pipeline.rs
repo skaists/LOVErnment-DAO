@@ -10,9 +10,12 @@
 //! - finalization fails after a live post → pending entry remains,
 //!   visibly incomplete (detectable honesty, never silent success)
 //! - exactly one post attempt per input, ever
-//! - idempotence on ATTEMPT, not success: any prior attempt — Success,
-//!   FinalizeFailed, or PostFailed — refuses rerun. The mark is set
-//!   before submit. Clearance is a founder act, out of code's reach.
+//! - DURABLE idempotence: the PDS audit trail is queried before the
+//!   in-process mark. Any existing entry (pending or finalized) for
+//!   this derivation_input → refuse as Duplicate. A pending entry
+//!   means a prior attempt crashed mid-flight — refuse and surface it.
+//!   The in-memory seen set is the in-process fast path; the audit
+//!   trail is the durable lock. Clearance is a founder act.
 
 use crate::adapter::tree_landing::{derive_tree_landing, CommitFacts};
 use crate::heartbeat::HeartbeatState;
@@ -94,7 +97,7 @@ pub enum PipelineResult {
     /// Post live but entry finalization failed. Pending entry remains,
     /// visibly incomplete — detectable honesty.
     FinalizeFailed { post_uri: String, post_cid: String, error: String },
-    /// Same repo@sha already attempted — idempotence on attempt.
+    /// Same derivation_input already in the audit trail or in-process mark.
     /// Clearance is a founder act, out of code's reach.
     Duplicate,
 }
@@ -136,8 +139,13 @@ impl Pipeline {
     /// Run the pipeline on one commit's facts.
     ///
     /// VOICE-1 §5.5 order: adapter → wrapper gate → create pending →
-    /// submit post → finalize entry. Idempotence mark is set BEFORE
-    /// submit — any prior attempt refuses rerun.
+    /// submit post → finalize entry.
+    ///
+    /// Durable idempotence: the PDS audit trail is queried for any
+    /// existing entry (pending or finalized) BEFORE the in-process
+    /// mark. A pending entry means a prior attempt crashed mid-flight —
+    /// refuse and surface it. The in-memory seen set is the fast path;
+    /// the audit trail is the durable lock.
     pub fn run<C: PdsClient>(
         &mut self,
         facts: &CommitFacts,
@@ -149,8 +157,13 @@ impl Pipeline {
     ) -> PipelineResult {
         let derivation_input = format!("{}@{}", facts.repo, facts.sha);
 
-        // Idempotence on ATTEMPT: mark before any side effect.
-        // Any prior attempt — Success, FinalizeFailed, PostFailed — refuses.
+        // DURABLE idempotence: the audit trail is the lock.
+        // Any existing entry (pending or finalized) → refuse.
+        if pds.find_entry_by_derivation_input(&derivation_input).is_some() {
+            return PipelineResult::Duplicate;
+        }
+
+        // In-process fast path.
         if self.seen.contains(&derivation_input) {
             return PipelineResult::Duplicate;
         }
@@ -175,8 +188,7 @@ impl Pipeline {
             return PipelineResult::Refused { reason: result };
         }
 
-        // MARK: idempotence on attempt. Set before submit, so even
-        // a failed post or failed finalize refuses rerun.
+        // MARK: in-process idempotence. Set before submit.
         self.seen.insert(derivation_input.clone());
 
         // Real audit fields.
