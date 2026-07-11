@@ -10,9 +10,13 @@
 //! - finalization fails after a live post → pending entry remains,
 //!   visibly incomplete (detectable honesty, never silent success)
 //! - exactly one post attempt per input, ever
-//! - idempotence on ATTEMPT, not success: any prior attempt — Success,
-//!   FinalizeFailed, or PostFailed — refuses rerun. The mark is set
-//!   before submit. Clearance is a founder act, out of code's reach.
+//! - DURABLE idempotence: the audit trail is the lock. run() queries
+//!   the PDS for any existing entry (pending or finalized) before
+//!   checking the in-process mark. A pending entry means a prior
+//!   attempt crashed mid-flight: refuse and surface it. The in-memory
+//!   seen set is the in-process fast path; the audit trail is the
+//!   durable lock. The mouth may never re-utter what its own ledger
+//!   already holds. Clearance/clearance is a founder act.
 
 use crate::adapter::tree_landing::{derive_tree_landing, CommitFacts};
 use crate::heartbeat::HeartbeatState;
@@ -24,7 +28,7 @@ pub trait Clock {
     fn now_rfc3339(&self) -> String;
 }
 
-/// Injected SHA-256 hasher — returns hex digest of input bytes.
+/// Injected hash function — returns hex digest of input bytes.
 pub trait Hasher {
     fn sha256_hex(&self, input: &[u8]) -> String;
 }
@@ -41,12 +45,6 @@ pub struct PendingEntry {
     pub created_at: String,
 }
 
-pub struct AuditEntry {
-    pub pending: PendingEntry,
-    pub post_uri: Option<String>,
-    pub post_cid: Option<String>,
-}
-
 /// The finalized entry — pending fields plus the pinned post reference.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FinalizedEntry {
@@ -55,9 +53,22 @@ pub struct FinalizedEntry {
     pub post_cid: String,
 }
 
+/// A read-back of an audit entry from the PDS — used for durable
+/// idempotence. If find_entry_by_derivation_input returns this,
+/// the input has already been attempted, regardless of in-process state.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AuditEntry {
+    pub pending: PendingEntry,
+    pub post_uri: Option<String>,
+    pub post_cid: Option<String>,
+}
+
 /// Mock PDS client trait — the pipeline never touches the network directly.
 ///
 /// Operations on `social.skaists.alpha.audit.entry` records:
+/// - `find_entry_by_derivation_input`: read-back for durable idempotence.
+///   Returns the entry if one exists for this derivationInput, whether
+///   pending or finalized. The audit trail is the lock.
 /// - `create_pending_entry`: write the entry with all fields except
 ///   postUri/postCid. Returns Ok if the record was written.
 /// - `submit_post`: submit the post text. Returns (uri, cid) on success.
@@ -86,7 +97,7 @@ pub enum PipelineResult {
     /// Post live but entry finalization failed. Pending entry remains,
     /// visibly incomplete — detectable honesty.
     FinalizeFailed { post_uri: String, post_cid: String, error: String },
-    /// Same repo@sha already attempted — idempotence on attempt.
+    /// Same derivationInput already in the audit trail or in-process mark.
     /// Clearance is a founder act, out of code's reach.
     Duplicate,
 }
@@ -115,11 +126,8 @@ impl Pipeline {
 
     /// Canonical serialization of CommitFacts for input_digest.
     ///
-    /// The serialization is serde_json::to_string of the CommitFacts
-    /// struct, which is deterministic: field order matches declaration
-    /// order in the struct (repo, sha, ref_name, subject, body,
-    /// signature_verified). The same facts always produce the same bytes.
-    /// Pinned by a test vector in the suite.
+    /// serde_json::to_string is deterministic: field order matches
+    /// declaration order in the struct. Pinned by a test vector.
     pub fn canonical_facts_json(facts: &CommitFacts) -> String {
         serde_json::to_string(facts)
             .expect("CommitFacts is always serializable")
@@ -128,8 +136,13 @@ impl Pipeline {
     /// Run the pipeline on one commit's facts.
     ///
     /// VOICE-1 §5.5 order: adapter → wrapper gate → create pending →
-    /// submit post → finalize entry. Idempotence mark is set BEFORE
-    /// submit — any prior attempt refuses rerun.
+    /// submit post → finalize entry.
+    ///
+    /// Durable idempotence: the PDS is queried for any existing entry
+    /// (pending or finalized) BEFORE the in-process mark. A pending
+    /// entry means a prior attempt crashed mid-flight — refuse and
+    /// surface it; recovery is a founder act, never an auto-retry.
+    /// The in-memory seen set is the fast path; the audit trail is the lock.
     pub fn run<C: PdsClient>(
         &mut self,
         facts: &CommitFacts,
@@ -141,8 +154,13 @@ impl Pipeline {
     ) -> PipelineResult {
         let derivation_input = format!("{}@{}", facts.repo, facts.sha);
 
-        // Idempotence on ATTEMPT: mark before any side effect.
-        // Any prior attempt — Success, FinalizeFailed, PostFailed — refuses.
+        // DURABLE idempotence: the audit trail is the lock.
+        // Any existing entry (pending or finalized) → refuse.
+        if pds.find_entry_by_derivation_input(&derivation_input).is_some() {
+            return PipelineResult::Duplicate;
+        }
+
+        // In-process fast path.
         if self.seen.contains(&derivation_input) {
             return PipelineResult::Duplicate;
         }
@@ -167,8 +185,7 @@ impl Pipeline {
             return PipelineResult::Refused { reason: result };
         }
 
-        // MARK: idempotence on attempt. Set before submit, so even
-        // a failed post or failed finalize refuses rerun.
+        // MARK: in-process idempotence. Set before submit.
         self.seen.insert(derivation_input.clone());
 
         // Real audit fields.
