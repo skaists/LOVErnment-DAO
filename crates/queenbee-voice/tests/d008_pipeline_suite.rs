@@ -1,8 +1,10 @@
-//! D-008r2 — Atomic pipeline suite (durable idempotence)
+//! D-008r3 — Atomic pipeline suite (the lock survives failure)
 //!
 //! VOICE-1 §5.5: no utterance without its entry. The pipeline is
 //! atomic: create pending → submit post → finalize. Durable
 //! idempotence: the audit trail is queried before the in-process mark.
+//! No non-success terminal removes the audit entry. On submit_post Err
+//! the entry is marked failed-pending-founder-review — it SURVIVES.
 
 #![forbid(unsafe_code)]
 
@@ -20,9 +22,9 @@ use std::collections::HashMap;
 // ═══════════════════════════════════════════════════════════════
 
 /// PDS mock with a durable store: entries survive pipeline destruction.
-/// Store maps derivation_input → (PendingEntry, Option<post_uri>, Option<post_cid>).
-/// When post_uri/post_cid are None the entry is pending; Some means finalized.
-type StoredEntry = (PendingEntry, Option<String>, Option<String>);
+/// Store maps derivation_input → (PendingEntry, Option<post_uri>, Option<post_cid>, Option<failure_error>).
+/// When failure_error is Some the entry is marked failed-pending-founder-review.
+type StoredEntry = (PendingEntry, Option<String>, Option<String>, Option<String>);
 
 struct DurableMockPds {
     store: RefCell<HashMap<String, StoredEntry>>,
@@ -71,17 +73,20 @@ impl DurableMockPds {
 
 impl PdsClient for DurableMockPds {
     fn find_entry_by_derivation_input(&self, key: &str) -> Option<AuditEntry> {
-        self.store.borrow().get(key).map(|(pending, uri, cid)| AuditEntry {
-            pending: pending.clone(),
-            post_uri: uri.clone(),
-            post_cid: cid.clone(),
-        })
+        self.store.borrow().get(key).map(
+            |(pending, uri, cid, failure_error)| AuditEntry {
+                pending: pending.clone(),
+                post_uri: uri.clone(),
+                post_cid: cid.clone(),
+                failure_error: failure_error.clone(),
+            },
+        )
     }
 
     fn create_pending_entry(&mut self, key: &str, entry: &PendingEntry) -> Result<(), String> {
         self.store
             .borrow_mut()
-            .insert(key.to_string(), (entry.clone(), None, None));
+            .insert(key.to_string(), (entry.clone(), None, None, None));
         Ok(())
     }
 
@@ -107,6 +112,13 @@ impl PdsClient for DurableMockPds {
     fn remove_entry(&mut self, key: &str) -> Result<(), String> {
         *self.removed.borrow_mut() = Some(key.to_string());
         self.store.borrow_mut().remove(key);
+        Ok(())
+    }
+
+    fn mark_entry_failed(&mut self, key: &str, error: &str) -> Result<(), String> {
+        if let Some(entry) = self.store.borrow_mut().get_mut(key) {
+            entry.3 = Some(error.to_string());
+        }
         Ok(())
     }
 }
@@ -278,11 +290,12 @@ fn wrapper_refused_writes_neither() {
 }
 
 // ═══════════════════════════════════════════════════════════════
-//  Post failure — pending entry created then removed
+//  Post failure — entry SURVIVES, marked failed-pending-founder-review
+//  (INVERTED from d008r2: was "removes_pending_entry")
 // ═══════════════════════════════════════════════════════════════
 
 #[test]
-fn post_failure_removes_pending_entry() {
+fn post_failure_marks_entry_failed_survives() {
     let mut pipeline = make_pipeline();
     let mut pds = DurableMockPds::submit_fails();
     let mut counter = MockCounter { count: 0 };
@@ -300,13 +313,22 @@ fn post_failure_removes_pending_entry() {
         matches!(result, PipelineResult::PostFailed { .. }),
         "post failure must return PostFailed, got {result:?}"
     );
+    // The entry MUST survive — the lock outlives any non-success terminal.
     assert!(
-        pds.removed.borrow().is_some(),
-        "pending entry must be removed on post failure"
+        pds.store.borrow().contains_key(DERIVATION_KEY),
+        "entry must SURVIVE post failure — the durable lock"
     );
+    // The entry MUST be marked failed.
+    let binding = pds.store.borrow();
+    let entry = binding.get(DERIVATION_KEY).expect("entry must exist");
     assert!(
-        !pds.store.borrow().contains_key(DERIVATION_KEY),
-        "store must not contain the entry after post-failure removal"
+        entry.3.is_some(),
+        "entry must be marked failed-pending-founder-review"
+    );
+    // The entry MUST NOT have been removed.
+    assert!(
+        pds.removed.borrow().is_none(),
+        "remove_entry must NOT be called on post failure"
     );
 }
 
@@ -535,7 +557,7 @@ fn r2_crash_recovery_pending_entry_refuses() {
     };
     store.insert(
         "skaists/LOVErnment-DAO@884b2bce".to_string(),
-        (pending, None, None),
+        (pending, None, None, None),
     );
 
     let mut pipeline = make_pipeline();
@@ -559,5 +581,65 @@ fn r2_crash_recovery_pending_entry_refuses() {
     assert!(
         pds.submitted.borrow().is_none(),
         "no post attempt when pending entry exists"
+    );
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  r3: AMBIGUOUS TIMEOUT — submit errors, entry survives, rerun refuses
+//  The post may have landed server-side; we can't know. The entry
+//  surviving is the only protection against a double-post.
+// ═══════════════════════════════════════════════════════════════
+
+#[test]
+fn r3_submit_error_survives_rerun_refuses() {
+    // First pipeline: submit returns Err. In the real world the post
+    // may have landed — the error is ambiguous (timeout, network reset).
+    let mut pipeline_a = make_pipeline();
+    let mut pds = DurableMockPds::submit_fails();
+    let mut counter = MockCounter { count: 0 };
+
+    let result_a = pipeline_a.run(
+        &clean_facts(),
+        &mut pds,
+        &mut counter,
+        HeartbeatState::Alive,
+        &FixedClock,
+        &Fnv1aHasher,
+    );
+    assert!(
+        matches!(result_a, PipelineResult::PostFailed { .. }),
+        "first run must fail at submit"
+    );
+
+    // The entry SURVIVED in the store (marked failed, not removed).
+    assert!(
+        pds.store.borrow().contains_key(DERIVATION_KEY),
+        "entry must survive post failure — the durable lock"
+    );
+
+    // Fresh pipeline over the same store — must refuse. The entry
+    // is the only thing preventing a double-post.
+    let store = pds.store.into_inner();
+    let mut pipeline_b = make_pipeline();
+    let mut pds_b = DurableMockPds::from_store(store);
+    let mut counter_b = MockCounter { count: 0 };
+
+    let result_b = pipeline_b.run(
+        &clean_facts(),
+        &mut pds_b,
+        &mut counter_b,
+        HeartbeatState::Alive,
+        &FixedClock,
+        &Fnv1aHasher,
+    );
+    assert_eq!(
+        result_b,
+        PipelineResult::Duplicate,
+        "fresh pipeline must refuse — the surviving entry is the only \
+         protection against a double-post when the submit error was ambiguous"
+    );
+    assert!(
+        pds_b.submitted.borrow().is_none(),
+        "no second post attempt — double-post window closed"
     );
 }

@@ -62,11 +62,14 @@ pub struct AuditEntry {
     pub pending: PendingEntry,
     pub post_uri: Option<String>,
     pub post_cid: Option<String>,
+    pub failure_error: Option<String>,
 }
 
 /// Mock PDS client trait — the pipeline never touches the network directly.
 ///
 /// Operations on `social.skaists.alpha.audit.entry` records:
+/// - `mark_entry_failed`: mark a pending entry as failed-pending-founder-review.
+///   The entry SURVIVES — the durable lock must outlive any non-success terminal.
 /// - `create_pending_entry`: write the entry with all fields except
 ///   postUri/postCid. Returns Ok if the record was written.
 /// - `submit_post`: submit the post text. Returns (uri, cid) on success.
@@ -81,6 +84,7 @@ pub trait PdsClient {
     fn submit_post(&mut self, text: &str) -> Result<(String, String), String>;
     fn finalize_entry(&mut self, key: &str, uri: &str, cid: &str) -> Result<(), String>;
     fn remove_entry(&mut self, key: &str) -> Result<(), String>;
+    fn mark_entry_failed(&mut self, key: &str, error: &str) -> Result<(), String>;
 }
 
 /// Result of a pipeline run.
