@@ -10,5 +10,6 @@
 #![forbid(unsafe_code)]
 
 pub mod cascade;
+pub mod performance;
 
 pub use escrow_core;
