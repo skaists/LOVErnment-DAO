@@ -1,0 +1,91 @@
+{
+  "lexicon": 1,
+  "id": "social.skaists.alpha.performance.set",
+  "description": "ALPHA: subject to change. A declaration of a performed DJ set. A set is an ordered artifact authored by the PERFORMER, in the performer's repository. It is not a listening record. Tracks are embedded by value as social.skaists.alpha.performance.defs#playRef; a set record MUST NOT reference an fm.teal.alpha.feed.play record by URI, because teal plays are consumption records living in a listener's repo and carry no back-reference.",
+  "defs": {
+    "main": {
+      "type": "record",
+      "key": "tid",
+      "record": {
+        "type": "object",
+        "required": ["setName", "startedAt", "items"],
+        "properties": {
+          "setName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256,
+            "maxGraphemes": 2560,
+            "description": "The name of the set."
+          },
+          "startedAt": {
+            "type": "string",
+            "format": "datetime",
+            "description": "RFC 3339 time the first track was brought in. Origin for every cueTime in items."
+          },
+          "endedAt": {
+            "type": "string",
+            "format": "datetime",
+            "description": "RFC 3339 time the last track was taken out."
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "ref",
+              "ref": "social.skaists.alpha.performance.defs#setItem"
+            },
+            "minLength": 1,
+            "maxLength": 500,
+            "description": "The tracks, in performance order. Order in this array is advisory; the normative order is the position field. See invariant SET-1."
+          },
+          "setKind": {
+            "type": "string",
+            "maxLength": 32,
+            "knownValues": ["live", "livestream", "broadcast", "studioMix", "rehearsal"],
+            "description": "What kind of artifact this is. Open vocabulary; unrecognized values MUST be preserved verbatim and rendered as unknown, never coerced to 'live'. Orthogonal to performer agency, which is declared per-performer on #performer.kind."
+          },
+          "supersedes": {
+            "type": "ref",
+            "ref": "com.atproto.repo.strongRef",
+            "description": "The prior revision of THIS set, in THIS repository, which this record replaces. CONTENT-PINNED, unlike eventUri: the cid is local to the author's own repo, costs no network round-trip to obtain, and the claim being made is explicitly about the prior record's CONTENT. Sets are append-only. The superseded record MUST NOT be deleted or tombstoned. See invariants SET-9 and SET-10."
+          },
+          "performers": {
+            "type": "array",
+            "items": {
+              "type": "ref",
+              "ref": "social.skaists.alpha.performance.defs#performer"
+            },
+            "maxLength": 8,
+            "description": "Ordered for b2b sets. When absent, the repository owner is the sole performer."
+          },
+          "venue": {
+            "type": "ref",
+            "ref": "social.skaists.alpha.performance.defs#venue",
+            "description": "The venue, embedded by value. LOAD-BEARING. A set is complete and verifiable without eventRef."
+          },
+          "eventUri": {
+            "type": "string",
+            "format": "at-uri",
+            "description": "Unpinned reference to a community.lexicon.calendar.event record, typically in the promoter's repository. Deliberately NOT a com.atproto.repo.strongRef: this record asserts PRESENCE, not description. The performer played at that party; the party's name, times, and status are the promoter's to revise, and revisions do not falsify the performer's attestation. ENRICHMENT ONLY: a set with a dangling or unresolvable eventUri remains a valid set. See invariant SET-8."
+          },
+          "setDiscriminant": {
+            "type": "string",
+            "maxLength": 128,
+            "maxGraphemes": 1280,
+            "description": "Distinguishing information for the set, e.g. 'Opening', 'B2B', 'Closing', 'Sunrise'. Convention borrowed from fm.teal.alpha.feed.play#trackDiscriminant."
+          },
+          "recordingUrl": {
+            "type": "string",
+            "format": "uri",
+            "description": "A recording of the set, if one exists and the performer chooses to publish it."
+          },
+          "submissionClientAgent": {
+            "type": "string",
+            "maxLength": 256,
+            "maxGraphemes": 2560,
+            "description": "Format `<app-identifier>/<version> (<kernel/OS-base>; <platform/OS-version>; <device-model>)`. Only app-identifier and version are required. Reverse-DNS app-identifier recommended. Defaults to 'manual/unknown'."
+          }
+        }
+      }
+    }
+  }
+}

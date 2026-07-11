@@ -1,0 +1,240 @@
+{
+  "lexicon": 1,
+  "id": "social.skaists.alpha.performance.defs",
+  "description": "Shared object definitions for skaists performance records. ALPHA: subject to change. All defs in this file are objects, not records; they are designed to be embedded by value, never referenced by URI.",
+  "defs": {
+    "artist": {
+      "type": "object",
+      "description": "Structurally identical to fm.teal.alpha.feed.defs#artist. Field names are intentionally byte-compatible so a teal artist object lifts with zero transformation.",
+      "required": ["artistName"],
+      "properties": {
+        "artistName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256,
+          "maxGraphemes": 2560,
+          "description": "The name of the artist"
+        },
+        "artistMbId": {
+          "type": "string",
+          "format": "uri",
+          "description": "The MusicBrainz artist ID URI, formatted as mbid:<uuid>"
+        }
+      }
+    },
+    "playRef": {
+      "type": "object",
+      "description": "An embedded copy of a played track. Field names, types, and length limits mirror fm.teal.alpha.feed.defs#playView so a teal playView lifts with zero transformation. REQUIRED SET IS STRICTER than teal's: playedTime is mandatory here because a set is an ordered artifact and teal's ordering falls back to rkey write-order, which diverges from performance order on backfill. A teal playView missing artists or playedTime MUST be rejected at ingest, never synthesized.",
+      "required": ["trackName", "artists", "playedTime"],
+      "properties": {
+        "trackName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256,
+          "maxGraphemes": 2560,
+          "description": "The name of the track"
+        },
+        "artists": {
+          "type": "array",
+          "items": { "type": "ref", "ref": "#artist" },
+          "minLength": 1,
+          "maxLength": 32,
+          "description": "Array of artists in order of original appearance."
+        },
+        "playedTime": {
+          "type": "string",
+          "format": "datetime",
+          "description": "RFC 3339 time at which this track was brought in. Absolute, not relative to the set. See invariant SET-2."
+        },
+        "trackMbId": {
+          "type": "string",
+          "format": "uri",
+          "description": "The MusicBrainz ID URI of the track, formatted as mbid:<uuid>"
+        },
+        "recordingMbId": {
+          "type": "string",
+          "format": "uri",
+          "description": "The MusicBrainz recording ID URI, formatted as mbid:<uuid>"
+        },
+        "duration": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "The length of the track in seconds"
+        },
+        "releaseName": {
+          "type": "string",
+          "maxLength": 256,
+          "maxGraphemes": 2560,
+          "description": "The name of the release/album"
+        },
+        "releaseMbId": {
+          "type": "string",
+          "format": "uri",
+          "description": "The MusicBrainz release ID URI, formatted as mbid:<uuid>"
+        },
+        "isrc": {
+          "type": "string",
+          "description": "The ISRC code associated with the recording"
+        },
+        "originUrl": {
+          "type": "string",
+          "description": "The URL associated with this track"
+        },
+        "musicServiceBaseDomain": {
+          "type": "string",
+          "description": "Base domain of the music service. Defaults to 'local' if unavailable or not provided."
+        },
+        "trackDiscriminant": {
+          "type": "string",
+          "maxLength": 128,
+          "maxGraphemes": 1280,
+          "description": "Distinguishing information for track variants, e.g. 'Radio Edit', 'Extended Mix', 'Dub'."
+        }
+      }
+    },
+    "transition": {
+      "type": "object",
+      "description": "How a track was brought in over the preceding one. Absent means unknown, not 'cut'.",
+      "required": ["technique"],
+      "properties": {
+        "technique": {
+          "type": "string",
+          "maxLength": 32,
+          "knownValues": [
+            "blend",
+            "cut",
+            "loopRoll",
+            "echoOut",
+            "spinback",
+            "filterSweep",
+            "drop",
+            "acapellaOver",
+            "unknown"
+          ],
+          "description": "Open vocabulary. Unrecognized values MUST be preserved verbatim, never coerced."
+        },
+        "durationMs": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 600000,
+          "description": "Length of the transition in milliseconds."
+        }
+      }
+    },
+    "setItem": {
+      "type": "object",
+      "description": "One track within a set, at a fixed ordinal position.",
+      "required": ["position", "play"],
+      "properties": {
+        "position": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Zero-based ordinal within the set. Strictly increasing, no gaps. See invariant SET-1."
+        },
+        "play": {
+          "type": "ref",
+          "ref": "#playRef",
+          "description": "The track, embedded by value. NEVER an at-uri to fm.teal.alpha.feed.play. See invariant SET-5."
+        },
+        "cueTime": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Seconds elapsed from set startedAt when this track was brought in. DERIVED and REDUNDANT with playedTime by design; disagreement beyond tolerance is a MISMATCH, not a rounding artifact. See invariant SET-4."
+        },
+        "outTime": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Seconds elapsed from set startedAt when this track was taken out."
+        },
+        "bpmMilli": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 400000,
+          "description": "Tempo in milli-BPM. 174000 == 174.000 BPM. AT Protocol lexicon v1 has NO float primitive; a fractional BPM cannot be expressed as a number. Do not substitute a string."
+        },
+        "musicalKey": {
+          "type": "string",
+          "maxLength": 8,
+          "description": "Camelot wheel notation preferred, e.g. '8A', '11B'. Open vocabulary; preserve verbatim."
+        },
+        "transitionIn": {
+          "type": "ref",
+          "ref": "#transition",
+          "description": "The transition used to bring this track in. Omitted on position 0."
+        }
+      }
+    },
+    "performer": {
+      "type": "object",
+      "description": "One performer. Agency is declared PER PERFORMER, not per set. 'Mixed' is therefore a derived property of the array and MUST NOT be stored; see SET-4 on derived fields.",
+      "required": ["performerName", "kind"],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "maxLength": 32,
+          "knownValues": ["human", "machine", "undisclosed"],
+          "description": "The agency of this performer. REQUIRED, because disclosure must be affirmative. 'undisclosed' is a sayable value; silence is not. An unrecognized value MUST be rendered as undisclosed and MUST NEVER be defaulted to 'human'. See invariant SET-11."
+        },
+        "performerName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256,
+          "maxGraphemes": 2560
+        },
+        "performerDid": {
+          "type": "string",
+          "format": "did",
+          "description": "AT Protocol identity of the performer, when they have one. A machine performer with a DID is a first-class performer and is named here like any other."
+        },
+        "performerMbId": {
+          "type": "string",
+          "format": "uri",
+          "description": "MusicBrainz artist ID URI, formatted as mbid:<uuid>"
+        }
+      }
+    },
+    "venue": {
+      "type": "object",
+      "description": "Where the performance happened, embedded by value. LOAD-BEARING: a set renders offline from this field alone (SET-8). Field names mirror community.lexicon.location.address so a venue lifts into that def with zero transformation whenever `country` is present. Deliberately NOT a ref to the community.lexicon.location.* union: every def in that union has an OPTIONAL `name`, and a location without a human-readable name cannot carry SET-8's load. Coordinates, H3 cells, and Foursquare ids belong on the event record, reachable via set#eventUri.",
+      "required": ["name"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256,
+          "maxGraphemes": 2560,
+          "description": "The name of the venue. REQUIRED here, optional in community.lexicon.location.address. A stricter profile, in the same sense that playRef requires playedTime and playView does not."
+        },
+        "street": {
+          "type": "string",
+          "description": "The street address."
+        },
+        "locality": {
+          "type": "string",
+          "maxLength": 128,
+          "description": "The locality of the region. For example, a city."
+        },
+        "region": {
+          "type": "string",
+          "maxLength": 128,
+          "description": "The administrative region of the country. For example, a state."
+        },
+        "postalCode": {
+          "type": "string",
+          "description": "The postal code of the location."
+        },
+        "country": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 2,
+          "description": "ISO 3166-1 alpha-2. Tighter than community.lexicon.location.address, which permits 2-10 characters. OPTIONAL, and optional on purpose: if `country` were required, a writer who cannot name it would have to omit `venue` entirely and lose the venue NAME too, producing a strictly worse record. Absent `country` costs only interop. See SET-13."
+        },
+        "venueUrl": {
+          "type": "string",
+          "format": "uri",
+          "description": "skaists extension; no counterpart in community.lexicon.location.address. A venue carrying this field remains liftable — consumers of the address shape ignore it."
+        }
+      }
+    }
+  }
+}

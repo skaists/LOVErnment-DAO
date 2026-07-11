@@ -1,0 +1,72 @@
+{
+  "lexicon": 1,
+  "id": "social.skaists.alpha.performance.setStatus",
+  "description": "ALPHA: subject to change. Ephemeral live-performance state for an actor. This record is STATE, not attestation. It is the sole record in the social.skaists.alpha.performance.* namespace that is mutable in place, and it carries no historical claim about anything. Sets are append-only; status is overwritten. Distinct collection from fm.teal.alpha.actor.status, so a performer broadcasting a live set never clobbers their own personal scrobbling status.",
+  "defs": {
+    "main": {
+      "type": "record",
+      "key": "literal:self",
+      "description": "One live status per actor. A performer plays one set at a time. Back-to-back performers each hold their own status.",
+      "record": {
+        "type": "object",
+        "required": ["updatedAt", "startedAt"],
+        "properties": {
+          "updatedAt": {
+            "type": "string",
+            "format": "datetime",
+            "description": "RFC 3339 time of the most recent change to this record."
+          },
+          "startedAt": {
+            "type": "string",
+            "format": "datetime",
+            "description": "RFC 3339 time the live performance began."
+          },
+          "expiry": {
+            "type": "string",
+            "format": "datetime",
+            "description": "RFC 3339 time past which this status is stale. When absent, consumers MUST default to 10 minutes past updatedAt — convention borrowed from fm.teal.alpha.actor.status. A stale status MUST NOT be rendered as live. See invariant STATUS-2."
+          },
+          "setKind": {
+            "type": "string",
+            "maxLength": 32,
+            "knownValues": ["live", "livestream", "broadcast", "rehearsal"],
+            "description": "Open vocabulary. Unrecognized values preserved verbatim, rendered as unknown, never coerced to 'live'."
+          },
+          "nowPlaying": {
+            "type": "ref",
+            "ref": "social.skaists.alpha.performance.defs#playRef",
+            "description": "The track currently playing. Optional: a performer may be live without disclosing the track."
+          },
+          "performers": {
+            "type": "array",
+            "items": {
+              "type": "ref",
+              "ref": "social.skaists.alpha.performance.defs#performer"
+            },
+            "maxLength": 8,
+            "description": "Ordered for b2b. When absent, the repository owner is the sole performer. MUST be present and complete whenever any performer is non-human. See invariant SET-11."
+          },
+          "venue": {
+            "type": "ref",
+            "ref": "social.skaists.alpha.performance.defs#venue"
+          },
+          "eventUri": {
+            "type": "string",
+            "format": "at-uri",
+            "description": "Unpinned reference to a community.lexicon.calendar.event record. Same semantics as social.skaists.alpha.performance.set#eventUri: presence, not description."
+          },
+          "setUri": {
+            "type": "string",
+            "format": "at-uri",
+            "description": "Unpinned reference to the social.skaists.alpha.performance.set record for this performance, once one exists. A live status MUST NOT be promoted into a set by mutation; the set is written separately, once, when the performance is over. See invariant STATUS-3."
+          },
+          "streamUrl": {
+            "type": "string",
+            "format": "uri",
+            "description": "Where the performance can be heard live, if anywhere."
+          }
+        }
+      }
+    }
+  }
+}
