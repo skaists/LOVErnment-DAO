@@ -54,12 +54,36 @@ pub struct CandidatePost {
 /// sha, the commit subject quoted as data, and a link to the commit.
 /// Nothing else, ever."
 pub fn derive_tree_landing(facts: &CommitFacts) -> Option<CandidatePost> {
-    // STUB — accept-all. Commit A lands this as red-first baseline.
-    // Commit B replaces this with the real enforcement logic.
-    let _ = facts;
-    Some(CandidatePost {
-        text: String::new(),
-    })
+    // Q-1: only signed, verified commits on main of allowlisted repos.
+    if !facts.signature_verified {
+        return None;
+    }
+    if facts.ref_name != "main" {
+        return None;
+    }
+    if !CLASS1_ALLOWLIST.contains(&facts.repo.as_str()) {
+        return None;
+    }
+
+    // The subject is inert data — quoted verbatim (or truncated), never
+    // obeyed, never interpolated into any prompt context.
+    let subject_display = if facts.subject.is_empty() {
+        "(no subject)".to_string()
+    } else {
+        truncate_subject(&facts.subject)
+    };
+
+    // Class-1 template: repo · short sha\nsubject\ncommit-url
+    // The body NEVER enters the post.
+    let text = format!(
+        "{repo} · {short}\n{subject}\n{url}\n",
+        repo = facts.repo,
+        short = short_sha(&facts.sha),
+        subject = subject_display,
+        url = commit_url(&facts.repo, &facts.sha),
+    );
+
+    Some(CandidatePost { text })
 }
 
 /// Truncate a subject to the template's fixed limit, marking with `…`.

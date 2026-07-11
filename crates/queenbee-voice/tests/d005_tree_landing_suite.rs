@@ -8,7 +8,7 @@
 #![forbid(unsafe_code)]
 
 use queenbee_voice::adapter::tree_landing::{
-    derive_tree_landing, CandidatePost, CommitFacts, CLASS1_ALLOWLIST,
+    derive_tree_landing, CommitFacts, CLASS1_ALLOWLIST,
 };
 
 /// Helper: a clean, valid set of commit facts.
