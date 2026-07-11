@@ -49,6 +49,18 @@ pub struct FinalizedEntry {
     pub post_cid: String,
 }
 
+/// Read-back of an audit entry from the PDS store.
+/// Used for durable idempotence: if find_entry_by_derivation_input
+/// returns Some, the input has already been attempted — whether the
+/// entry is pending (crashed mid-flight) or finalized (completed).
+/// Clearance of a pending entry is a founder act, never auto-retry.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AuditEntry {
+    pub pending: PendingEntry,
+    pub post_uri: Option<String>,
+    pub post_cid: Option<String>,
+}
+
 /// Mock PDS client trait — the pipeline never touches the network directly.
 ///
 /// Operations on `social.skaists.alpha.audit.entry` records:
@@ -59,6 +71,9 @@ pub struct FinalizedEntry {
 ///   Ok if the finalization succeeded.
 /// - `remove_entry`: delete a pending entry (cleanup on post failure).
 pub trait PdsClient {
+    /// Durable idempotence check — returns the entry if one exists
+    /// for this derivation_input, whether pending or finalized.
+    fn find_entry_by_derivation_input(&self, derivation_input: &str) -> Option<AuditEntry>;
     fn create_pending_entry(&mut self, key: &str, entry: &PendingEntry) -> Result<(), String>;
     fn submit_post(&mut self, text: &str) -> Result<(String, String), String>;
     fn finalize_entry(&mut self, key: &str, uri: &str, cid: &str) -> Result<(), String>;
