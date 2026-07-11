@@ -7,6 +7,8 @@ description = "skaists LOVErnment core — first out-of-tree consumer of the bNa
 
 [dependencies]
 escrow-core = { git = "https://github.com/beehive-nature/beehive-nature", tag = "kernel-v0.1.0" }
+serde_json = "1"
+time = { version = "0.3", features = ["parsing"] }
 
 [dev-dependencies]
 time = { version = "0.3", features = ["macros", "parsing"] }
