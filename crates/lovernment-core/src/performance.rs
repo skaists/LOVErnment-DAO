@@ -85,10 +85,163 @@ impl Rule {
 /// Validate a `performance.set` record. Returns the list of violated rules;
 /// empty means the record passes all machine-decidable checks.
 pub fn validate_set(record: &Value) -> Vec<Rule> {
-    // STUB — accepts everything. Commit A lands this as red-first baseline.
-    // Commit B replaces this body with the real enforcement logic.
-    let _ = record;
-    Vec::new()
+    let mut v = Vec::new();
+
+    let items = match record.get("items").and_then(|i| i.as_array()) {
+        Some(a) if !a.is_empty() => a,
+        _ => return v,
+    };
+
+    // ── SET-1: position is total and dense ──
+    // "items[i].position strictly increasing, beginning at 0,
+    //  no gaps, no duplicates."
+    let mut positions: Vec<i64> = items
+        .iter()
+        .filter_map(|item| item.get("position").and_then(|p| p.as_i64()))
+        .collect();
+    positions.sort_unstable();
+    let set1_ok = !positions.is_empty()
+        && positions.iter().enumerate().all(|(i, &p)| p == i as i64);
+    if !set1_ok {
+        v.push(Rule::Set1);
+    }
+
+    // ── SET-2: time is monotonic ──
+    // "items[i].play.playedTime is non-decreasing in i."
+    let times: Vec<Option<i64>> = items
+        .iter()
+        .map(|item| {
+            item.get("play")
+                .and_then(|p| p.as_object())
+                .and_then(|o| o.get("playedTime"))
+                .and_then(|t| t.as_str())
+                .and_then(parse_ts)
+        })
+        .collect();
+    let set2_ok = times.windows(2).all(|w| match (w[0], w[1]) {
+        (Some(a), Some(b)) => a <= b,
+        _ => true,
+    });
+    if !set2_ok {
+        v.push(Rule::Set2);
+    }
+
+    // ── SET-3: set contains its tracks ──
+    // "startedAt ≤ items[0].play.playedTime. If endedAt is present,
+    //  items[n-1].play.playedTime ≤ endedAt."
+    let started_at = record
+        .get("startedAt")
+        .and_then(|s| s.as_str())
+        .and_then(parse_ts);
+    let ended_at = record
+        .get("endedAt")
+        .and_then(|s| s.as_str())
+        .and_then(parse_ts);
+    let first_play = times.first().copied().flatten();
+    let last_play = times.last().copied().flatten();
+    if let (Some(s), Some(f)) = (started_at, first_play) {
+        if s > f {
+            v.push(Rule::Set3);
+        }
+    }
+    if let (Some(e), Some(l)) = (ended_at, last_play) {
+        if l > e {
+            v.push(Rule::Set3);
+        }
+    }
+
+    // ── SET-4: cueTime matches floor(playedTime − startedAt) ±1s ──
+    // "Where cueTime is present, cueTime == floor(playedTime − startedAt)
+    //  in seconds, tolerance ±1s for clock granularity."
+    if let Some(start) = started_at {
+        for item in items {
+            let cue = item.get("cueTime").and_then(|c| c.as_i64());
+            let play_ts = item
+                .get("play")
+                .and_then(|p| p.as_object())
+                .and_then(|o| o.get("playedTime"))
+                .and_then(|t| t.as_str())
+                .and_then(parse_ts);
+            if let (Some(cue_time), Some(play_time)) = (cue, play_ts) {
+                let expected = play_time - start;
+                if (cue_time - expected).abs() > 1 {
+                    v.push(Rule::Set4);
+                    break;
+                }
+            }
+        }
+    }
+
+    // ── SET-5: embed, never reference ──
+    // "A set record MUST NOT contain an at-uri to any fm.teal.* record."
+    if contains_teal_at_uri(record) {
+        v.push(Rule::Set5);
+    }
+
+    // ── SET-6: no floats exist ──
+    // "Tempo is bpmMilli, an integer in milli-BPM. Do not substitute
+    //  a string. Do not round to integer BPM."
+    for item in items {
+        if let Some(bpm) = item.get("bpmMilli") {
+            if bpm.is_string() || bpm.is_f64() {
+                v.push(Rule::Set6);
+                break;
+            }
+        }
+    }
+
+    // ── SET-11: disclosure is affirmative ──
+    // "#performer.kind is required, and 'undisclosed' is a sayable
+    //  value. Silence is not."
+    if let Some(perfs) = record.get("performers").and_then(|p| p.as_array()) {
+        if perfs.iter().any(|p| p.get("kind").is_none()) {
+            v.push(Rule::Set11);
+        }
+    }
+
+    // ── SET-12: agency is per-performer; "mixed" is derived ──
+    // "Two humans, two machines, or any blend is a property of the
+    //  performers array, not a field on the set. Do not store it."
+    if record.get("performerAgency").is_some()
+        || record.get("agency").is_some()
+        || record.get("mixed").is_some()
+    {
+        v.push(Rule::Set12);
+    }
+
+    // ── SET-13: venue is a strict profile, name required ──
+    // "name is required here and optional there."
+    if let Some(venue) = record.get("venue") {
+        let name_missing = venue.get("name").is_none()
+            || venue
+                .get("name")
+                .and_then(|n| n.as_str())
+                .map_or(false, |s| s.is_empty());
+        if name_missing {
+            v.push(Rule::Set13);
+        }
+    }
+
+    // ── §5 ingest: playRef requires trackName, artists, playedTime ──
+    // "A playView missing playedTime is rejected at ingest."
+    // "artists ... required, minLength: 1"
+    for item in items {
+        if let Some(play) = item.get("play").and_then(|p| p.as_object()) {
+            if play.get("playedTime").is_none() {
+                v.push(Rule::IngestPlayedTime);
+            }
+            match play.get("artists") {
+                None => v.push(Rule::IngestArtistsMissing),
+                Some(a) => {
+                    if a.as_array().map_or(false, |arr| arr.is_empty()) {
+                        v.push(Rule::IngestArtistsEmpty);
+                    }
+                }
+            }
+        }
+    }
+
+    v
 }
 
 /// Validate a `performance.setStatus` record.
@@ -97,10 +250,16 @@ pub fn validate_set(record: &Value) -> Vec<Rule> {
 /// STATUS-2 (stale-render) and STATUS-3 (status-to-set mutation) are consumer
 /// and process rules — see the module-level excluded list.
 pub fn validate_set_status(record: &Value) -> Vec<Rule> {
-    // STUB — accepts everything. Commit A lands this as red-first baseline.
-    // Commit B replaces this body with the real enforcement logic.
-    let _ = record;
-    Vec::new()
+    let mut v = Vec::new();
+
+    // STATUS-1: "setStatus is the sole record in this namespace that
+    // is mutated in place. It is never append-only, never superseded,
+    // never corrected."
+    if record.get("supersedes").is_some() {
+        v.push(Rule::Status1);
+    }
+
+    v
 }
 
 // ── internal helpers (used by the real implementation in commit B) ──
