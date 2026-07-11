@@ -6,7 +6,9 @@
 //!
 //! Failure semantics (pinned):
 //! - adapter None or wrapper refusal → nothing persisted
-//! - post submission fails → pending entry removed, no retry storm
+//! - post submission fails → entry marked failed-pending-founder-review.
+//!   The lock SURVIVES — the post may have landed server-side (ambiguous
+//!   timeout). Clearance to retry is a founder act, identical to crash recovery.
 //! - finalization fails after a live post → pending entry remains,
 //!   visibly incomplete (detectable honesty, never silent success)
 //! - exactly one post attempt per input, ever
@@ -96,7 +98,10 @@ pub enum PipelineResult {
     Refused { reason: SubmitResult },
     /// Adapter produced no candidate. Nothing persisted.
     NoCandidate,
-    /// Post submission failed. Pending entry removed.
+    /// Post submission failed. Entry marked failed-pending-founder-review —
+    /// it SURVIVES. The ambiguous-timeout case (post may have landed
+    /// server-side) is why the entry must NOT be removed. Clearance
+    /// to retry is a founder act.
     PostFailed { error: String },
     /// Post live but entry finalization failed. Pending entry remains,
     /// visibly incomplete — detectable honesty.
@@ -219,7 +224,7 @@ impl Pipeline {
         let (post_uri, post_cid) = match pds.submit_post(&candidate.text) {
             Ok(t) => t,
             Err(e) => {
-                let _ = pds.remove_entry(&derivation_input);
+                let _ = pds.mark_entry_failed(&derivation_input, &e);
                 return PipelineResult::PostFailed { error: e };
             }
         };
