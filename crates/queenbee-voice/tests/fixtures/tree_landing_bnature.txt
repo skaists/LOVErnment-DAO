@@ -1,0 +1,3 @@
+beehive-nature/beehive-nature · a1b2c3d
+kernel: fix dual-balance check edge case on zero-amount escrows
+https://github.com/beehive-nature/beehive-nature/commit/a1b2c3d4e5f6789

@@ -5,6 +5,7 @@
 resolver = "2"
 members = [
     "crates/lovernment-core",
+    "crates/queenbee-voice",
 ]
 
 [workspace.package]
