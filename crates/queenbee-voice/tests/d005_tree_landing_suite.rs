@@ -240,3 +240,27 @@ fn neg9_empty_subject_placeholder() {
         "empty subject must use (no subject) placeholder, never a fabricated summary"
     );
 }
+
+// ═══════════════════════════════════════════════════════════════
+//  Negative 10 — multi-byte sha: short_sha via chars().take(7)
+// ═══════════════════════════════════════════════════════════════
+
+#[test]
+fn neg10_multibyte_sha_does_not_panic() {
+    // A hostile sha whose first 7 bytes split a multi-byte char.
+    // The byte 0xC3 starts a two-byte sequence (0xC3 0xA9 = 'é');
+    // byte-slicing at [..7] would land mid-char at byte 7 and panic.
+    // chars().take(7) is total — it never panics.
+    let mut facts = clean_facts();
+    facts.sha = "café_restaurant_1234567890abcdef".to_string();
+
+    // Must not panic, and must produce a valid short sha.
+    let post = derive_tree_landing(&facts)
+        .expect("valid commit with multi-byte sha must produce a post");
+
+    assert!(
+        post.text.contains("café_re"),
+        "short sha must be first 7 Unicode scalar values: 'café_re', got: {}",
+        post.text
+    );
+}
