@@ -132,8 +132,82 @@ impl Pipeline {
         clock: &dyn Clock,
         hasher: &dyn Hasher,
     ) -> PipelineResult {
-        // STUB — returns NoCandidate for all inputs. Commit A: red-first.
-        let _ = (facts, pds, counter, heartbeat_state, clock, hasher);
-        PipelineResult::NoCandidate
+        let derivation_input = format!("{}@{}", facts.repo, facts.sha);
+
+        // Idempotence on ATTEMPT: mark before any side effect.
+        // Any prior attempt — Success, FinalizeFailed, PostFailed — refuses.
+        if self.seen.contains(&derivation_input) {
+            return PipelineResult::Duplicate;
+        }
+
+        // Adapter: derive candidate post.
+        let candidate = match derive_tree_landing(facts) {
+            Some(c) => c,
+            None => return PipelineResult::NoCandidate,
+        };
+
+        // Wrapper gate: heartbeat, allowlist, rate cap.
+        struct HeartbeatBridge(HeartbeatState);
+        impl crate::wrapper::HeartbeatCheck for HeartbeatBridge {
+            fn is_alive(&self) -> bool {
+                self.0.is_alive()
+            }
+        }
+        let hb = HeartbeatBridge(heartbeat_state);
+
+        let result = submit_post(&facts.repo, counter, &hb);
+        if result != SubmitResult::Accepted {
+            return PipelineResult::Refused { reason: result };
+        }
+
+        // MARK: idempotence on attempt. Set before submit, so even
+        // a failed post or failed finalize refuses rerun.
+        self.seen.insert(derivation_input.clone());
+
+        // Real audit fields.
+        let canonical = Self::canonical_facts_json(facts);
+        let input_digest = hasher.sha256_hex(canonical.as_bytes());
+        let created_at = clock.now_rfc3339();
+
+        let pending = PendingEntry {
+            derivation_input: derivation_input.clone(),
+            input_digest,
+            adapter_class: "TreeLanding".to_string(),
+            adapter_digest: self.adapter_digest.clone(),
+            model_digest: self.model_digest.clone(),
+            prompt_digest: self.prompt_digest.clone(),
+            created_at,
+        };
+
+        // Create pending entry (real PDS record).
+        if let Err(e) = pds.create_pending_entry(&derivation_input, &pending) {
+            return PipelineResult::PostFailed { error: e };
+        }
+
+        // Submit post.
+        let (post_uri, post_cid) = match pds.submit_post(&candidate.text) {
+            Ok(t) => t,
+            Err(e) => {
+                let _ = pds.remove_entry(&derivation_input);
+                return PipelineResult::PostFailed { error: e };
+            }
+        };
+
+        // Finalize entry with postUri/postCid.
+        if let Err(e) = pds.finalize_entry(&derivation_input, &post_uri, &post_cid) {
+            return PipelineResult::FinalizeFailed {
+                post_uri,
+                post_cid,
+                error: e,
+            };
+        }
+
+        PipelineResult::Success {
+            entry: FinalizedEntry {
+                pending,
+                post_uri,
+                post_cid,
+            },
+        }
     }
 }
