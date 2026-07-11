@@ -101,11 +101,8 @@ fn commit_url(repo: &str, sha: &str) -> String {
     format!("https://github.com/{repo}/commit/{sha}")
 }
 
-/// Short sha (first 7 chars).
-fn short_sha(sha: &str) -> &str {
-    if sha.len() >= 7 {
-        &sha[..7]
-    } else {
-        sha
-    }
+/// Short sha (first 7 Unicode scalar values — byte-slicing a multi-byte
+/// sha would panic on a char boundary).
+fn short_sha(sha: &str) -> String {
+    sha.chars().take(7).collect()
 }
