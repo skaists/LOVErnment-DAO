@@ -32,9 +32,17 @@ pub(crate) struct Session {
 /// Fail-closed: a response missing `accessJwt` or `did` is an error, never
 /// a session with empty fields.
 pub(crate) fn parse_session_response(v: &Value) -> Result<Session, String> {
-    // COMMIT A STUB — implemented in commit B.
-    let _ = v;
-    Err("parse_session_response: not implemented (commit A stub)".to_string())
+    let access_jwt = v
+        .get("accessJwt")
+        .and_then(|x| x.as_str())
+        .ok_or("createSession response missing accessJwt")?
+        .to_string();
+    let did = v
+        .get("did")
+        .and_then(|x| x.as_str())
+        .ok_or("createSession response missing did")?
+        .to_string();
+    Ok(Session { access_jwt, did })
 }
 
 /// Verify the authenticated session belongs to bQueenBee. Fail-closed:
@@ -53,9 +61,10 @@ pub(crate) fn verify_did(did: &str) -> Result<(), String> {
 /// `at://<did>/<collection>/<rkey>`. Returns `None` for an empty or
 /// trailing-slash uri.
 pub(crate) fn rkey_from_uri(uri: &str) -> Option<String> {
-    // COMMIT A STUB — implemented in commit B.
-    let _ = uri;
-    None
+    match uri.rsplit('/').next() {
+        Some(seg) if !seg.is_empty() => Some(seg.to_string()),
+        _ => None,
+    }
 }
 
 /// Parse a `com.atproto.repo.listRecords` response into a [`RecordsPage`].
@@ -63,9 +72,25 @@ pub(crate) fn rkey_from_uri(uri: &str) -> Option<String> {
 /// verbatim for the field scan). `cursor` is carried when present. A
 /// response whose `records` is not an array is a malformed-listing error.
 pub(crate) fn parse_list_response(v: &Value) -> Result<RecordsPage, String> {
-    // COMMIT A STUB — implemented in commit B.
-    let _ = v;
-    Err("parse_list_response: not implemented (commit A stub)".to_string())
+    let arr = v
+        .get("records")
+        .ok_or("listRecords response missing records")?
+        .as_array()
+        .ok_or("listRecords response records is not an array")?;
+    let mut records = Vec::with_capacity(arr.len());
+    for rec in arr {
+        // rkey is informational; the field scan matches on value.derivationInput,
+        // never the rkey, so an unparseable uri does not drop the record.
+        let rkey = rec
+            .get("uri")
+            .and_then(|u| u.as_str())
+            .and_then(rkey_from_uri)
+            .unwrap_or_default();
+        let value = rec.get("value").cloned().unwrap_or(Value::Null);
+        records.push(AuditRecord { rkey, value });
+    }
+    let cursor = v.get("cursor").and_then(|c| c.as_str()).map(String::from);
+    Ok(RecordsPage { records, cursor })
 }
 
 /// The live XRPC transport. Holds a verified session and implements both
@@ -144,7 +169,10 @@ impl AuditRecordSource for LiveXrpc {
     fn list_audit_records(&self, cursor: Option<String>) -> Result<RecordsPage, String> {
         let mut req = self
             .agent
-            .get(&format!("{}/xrpc/com.atproto.repo.listRecords", self.pds_url))
+            .get(&format!(
+                "{}/xrpc/com.atproto.repo.listRecords",
+                self.pds_url
+            ))
             .set("Authorization", &format!("Bearer {}", self.access_jwt))
             .query("repo", BQUEENBEE_DID)
             .query("collection", AUDIT_COLLECTION);
@@ -224,7 +252,9 @@ mod tests {
     #[test]
     fn rkey_from_at_uri_takes_final_segment() {
         assert_eq!(
-            rkey_from_uri("at://did:plc:77xbxwg7vh3wh5pmzvid65hc/social.skaists.alpha.audit.entry/3k2aXyZ"),
+            rkey_from_uri(
+                "at://did:plc:77xbxwg7vh3wh5pmzvid65hc/social.skaists.alpha.audit.entry/3k2aXyZ"
+            ),
             Some("3k2aXyZ".to_string())
         );
     }
@@ -258,7 +288,10 @@ mod tests {
         assert_eq!(page.records.len(), 2);
         assert_eq!(page.records[0].rkey, "rk1");
         assert_eq!(
-            page.records[0].value.get("derivationInput").and_then(|d| d.as_str()),
+            page.records[0]
+                .value
+                .get("derivationInput")
+                .and_then(|d| d.as_str()),
             Some("skaists/LOVErnment-DAO@884b2bce")
         );
         assert_eq!(page.records[1].rkey, "rk2");
