@@ -355,12 +355,12 @@ impl<S: AuditRecordSource, T: XrpcTransport> PdsClient for LivePdsClient<S, T> {
         let uri = resp
             .get("uri")
             .and_then(|v| v.as_str())
-            .unwrap_or("")
+            .ok_or_else(|| "createRecord response missing uri".to_string())?
             .to_string();
         let cid = resp
             .get("cid")
             .and_then(|v| v.as_str())
-            .unwrap_or("")
+            .ok_or_else(|| "createRecord response missing cid".to_string())?
             .to_string();
         Ok((uri, cid))
     }
