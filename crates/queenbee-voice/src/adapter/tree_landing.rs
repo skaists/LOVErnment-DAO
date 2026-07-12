@@ -31,7 +31,24 @@ pub struct CommitFacts {
     pub ref_name: String,
     pub subject: String,
     pub body: String,
+    /// PROVENANCE, not GPG (founder Ruling A, D-009c). This tree uses DCO,
+    /// not commit signing, by policy. "Provenance-verified" means the commit
+    /// is reachable from the known-good `main` head AND carries a DCO
+    /// `Signed-off-by` — computed by the caller via [`provenance_verified`]
+    /// and set here. The adapter refuses any commit whose provenance is not
+    /// established (see `derive_tree_landing`).
     pub signature_verified: bool,
+}
+
+/// Provenance for a DCO tree (founder Ruling A, D-009c). A commit is
+/// provenance-verified iff it is reachable from the known-good `main` head
+/// AND carries a DCO `Signed-off-by` trailer. This is the correct semantics
+/// for a DCO tree — a random off-tree sha is refused (not reachable); an
+/// unsigned-but-DCO commit on main is accepted. It is NOT a GPG check.
+pub fn provenance_verified(reachable_on_main: bool, dco_present: bool) -> bool {
+    // COMMIT A STUB — real check in commit B.
+    let _ = (reachable_on_main, dco_present);
+    false
 }
 
 /// A candidate post produced by an adapter. The pipeline submits this
@@ -54,7 +71,9 @@ pub struct CandidatePost {
 /// sha, the commit subject quoted as data, and a link to the commit.
 /// Nothing else, ever."
 pub fn derive_tree_landing(facts: &CommitFacts) -> Option<CandidatePost> {
-    // Q-1: only signed, verified commits on main of allowlisted repos.
+    // Q-1: only PROVENANCE-verified commits (reachable-on-main + DCO for
+    // this DCO tree; see `provenance_verified` and CommitFacts, Ruling A)
+    // on main of allowlisted repos.
     if !facts.signature_verified {
         return None;
     }

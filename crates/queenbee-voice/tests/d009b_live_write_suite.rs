@@ -119,6 +119,9 @@ impl Clock for FixedClock {
     fn now_rfc3339(&self) -> String {
         "2026-07-12T00:00:00Z".to_string()
     }
+    fn now_micros(&self) -> u64 {
+        1_752_192_000_000_000
+    }
 }
 
 struct Fnv1aHasher;
@@ -678,6 +681,11 @@ impl XrpcTransport for RoundTripTransport {
             .as_str()
             .ok_or("putRecord missing rkey")?
             .to_string();
+        // Ruling B (D-009c): the rkey must be a tid, never the derivationInput.
+        assert!(
+            !rkey.contains('/') && !rkey.contains('@'),
+            "invalid audit rkey (Ruling B): {rkey}"
+        );
         let record = body["record"].clone();
         self.store.records.borrow_mut().insert(rkey, record);
         Ok(serde_json::json!({}))

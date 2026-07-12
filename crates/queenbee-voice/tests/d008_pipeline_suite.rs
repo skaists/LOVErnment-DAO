@@ -74,19 +74,33 @@ impl DurableMockPds {
 impl PdsClient for DurableMockPds {
     fn find_entry_by_derivation_input(
         &self,
-        key: &str,
+        derivation_input: &str,
     ) -> Result<Option<AuditEntry>, ScanError> {
-        Ok(self.store.borrow().get(key).map(
-            |(pending, uri, cid, failure_error)| AuditEntry {
-                pending: pending.clone(),
-                post_uri: uri.clone(),
-                post_cid: cid.clone(),
-                failure_error: failure_error.clone(),
+        // Ruling B (D-009c): scan by the derivationInput FIELD — the store is
+        // keyed by tid rkey, never by derivationInput. This mirrors the real
+        // client's field scan and keeps the durable lock intact.
+        Ok(self.store.borrow().values().find_map(
+            |(pending, uri, cid, failure_error)| {
+                if pending.derivation_input == derivation_input {
+                    Some(AuditEntry {
+                        pending: pending.clone(),
+                        post_uri: uri.clone(),
+                        post_cid: cid.clone(),
+                        failure_error: failure_error.clone(),
+                    })
+                } else {
+                    None
+                }
             },
         ))
     }
 
     fn create_pending_entry(&mut self, key: &str, entry: &PendingEntry) -> Result<(), String> {
+        // Ruling B (D-009c): the rkey must be a tid, never the derivationInput.
+        assert!(
+            !key.contains('/') && !key.contains('@'),
+            "invalid audit rkey (Ruling B): {key}"
+        );
         self.store
             .borrow_mut()
             .insert(key.to_string(), (entry.clone(), None, None, None));
@@ -142,6 +156,9 @@ struct FixedClock;
 impl Clock for FixedClock {
     fn now_rfc3339(&self) -> String {
         "2026-07-11T00:00:00Z".to_string()
+    }
+    fn now_micros(&self) -> u64 {
+        1_752_192_000_000_000
     }
 }
 
@@ -244,7 +261,8 @@ fn happy_path_writes_both_entry_finalized() {
     );
     let store = pds.store.borrow();
     let entry = store
-        .get(DERIVATION_KEY)
+        .values()
+        .find(|e| e.0.derivation_input == DERIVATION_KEY)
         .expect("pending entry must have been created in the store");
     assert!(
         entry.1.is_some(),
@@ -318,12 +336,15 @@ fn post_failure_marks_entry_failed_survives() {
     );
     // The entry MUST survive — the lock outlives any non-success terminal.
     assert!(
-        pds.store.borrow().contains_key(DERIVATION_KEY),
+        pds.store.borrow().values().any(|e| e.0.derivation_input == DERIVATION_KEY),
         "entry must SURVIVE post failure — the durable lock"
     );
     // The entry MUST be marked failed.
     let binding = pds.store.borrow();
-    let entry = binding.get(DERIVATION_KEY).expect("entry must exist");
+    let entry = binding
+        .values()
+        .find(|e| e.0.derivation_input == DERIVATION_KEY)
+        .expect("entry must exist");
     assert!(
         entry.3.is_some(),
         "entry must be marked failed-pending-founder-review"
@@ -367,11 +388,14 @@ fn finalize_failure_leaves_pending_entry_alive() {
     );
     // The pending entry MUST survive — detectable honesty.
     assert!(
-        pds.store.borrow().contains_key(DERIVATION_KEY),
+        pds.store.borrow().values().any(|e| e.0.derivation_input == DERIVATION_KEY),
         "pending entry must survive finalize failure"
     );
     let binding = pds.store.borrow();
-    let entry = binding.get(DERIVATION_KEY).unwrap();
+    let entry = binding
+        .values()
+        .find(|e| e.0.derivation_input == DERIVATION_KEY)
+        .unwrap();
     assert!(
         entry.1.is_none(),
         "entry must not have post_uri after finalize failure"
@@ -616,7 +640,7 @@ fn r3_submit_error_survives_rerun_refuses() {
 
     // The entry SURVIVED in the store (marked failed, not removed).
     assert!(
-        pds.store.borrow().contains_key(DERIVATION_KEY),
+        pds.store.borrow().values().any(|e| e.0.derivation_input == DERIVATION_KEY),
         "entry must survive post failure — the durable lock"
     );
 
