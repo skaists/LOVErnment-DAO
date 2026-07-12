@@ -89,7 +89,9 @@ impl<S: AuditRecordSource> LivePdsClient<S> {
 
 /// Parse a raw record value into an `AuditEntry` (strict — all fields
 /// required). Returns `None` if any required field is missing.
-fn parse_audit_entry(record: &AuditRecord) -> Option<AuditEntry> {
+/// Used by tests for assertions against well-formed records.
+#[allow(dead_code)]
+fn parse_audit_entry_strict(record: &AuditRecord) -> Option<AuditEntry> {
     let v = &record.value;
     Some(AuditEntry {
         pending: PendingEntry {
@@ -116,13 +118,72 @@ fn parse_audit_entry(record: &AuditRecord) -> Option<AuditEntry> {
     })
 }
 
+/// Best-effort parse — used after derivationInput match is confirmed.
+/// Missing fields are filled with empty strings. The pipeline treats
+/// `Ok(Some(_))` as block regardless of field completeness — the match
+/// on `derivationInput` is what blocks, not the full parse.
+fn parse_audit_entry_best_effort(record: &AuditRecord) -> AuditEntry {
+    let v = &record.value;
+    AuditEntry {
+        pending: PendingEntry {
+            derivation_input: v
+                .get("derivationInput")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string(),
+            input_digest: v
+                .get("inputDigest")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string(),
+            adapter_class: v
+                .get("adapterClass")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string(),
+            adapter_digest: v
+                .get("adapterDigest")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string(),
+            model_digest: v
+                .get("modelDigest")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string(),
+            prompt_digest: v
+                .get("promptDigest")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string(),
+            created_at: v
+                .get("createdAt")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string(),
+        },
+        post_uri: v
+            .get("postUri")
+            .and_then(|v| v.as_str())
+            .map(String::from),
+        post_cid: v
+            .get("postCid")
+            .and_then(|v| v.as_str())
+            .map(String::from),
+        failure_error: v
+            .get("failureError")
+            .and_then(|v| v.as_str())
+            .map(String::from),
+    }
+}
+
 // ─── PdsClient impl ────────────────────────────────────────────
 //
-// D-009a2 commit A: NAIVE implementation with TWO deliberate defects
-// the test suite catches:
-//   F-1: transport Err swallowed into Ok(None) — fail-open
-//   F-2: full parse required before field match — partial records skipped
-// Commit B fixes both: Err propagates, field match checked first.
+// D-009a2: fail-closed read scan.
+// F-1: transport Err propagates as Err(ScanError::Transport) — never Ok(None).
+// F-2: derivationInput field checked FIRST, before full parse attempt.
+// A matched-but-partial record (e.g. crash-mid-flight missing createdAt)
+// still blocks — it is never skipped.
 
 impl<S: AuditRecordSource> PdsClient for LivePdsClient<S> {
     fn find_entry_by_derivation_input(
@@ -132,12 +193,12 @@ impl<S: AuditRecordSource> PdsClient for LivePdsClient<S> {
         let mut cursor = None;
         let mut pages_fetched = 0u32;
         loop {
-            // NAIVE (commit A): swallows transport error into Ok(None).
-            // G-Q says this must be Err(ScanError::Transport(..)).
-            let page = match self.source.list_audit_records(cursor) {
-                Ok(p) => p,
-                Err(_) => return Ok(None), // BUG: fail-open
-            };
+            // G-Q: transport failure → Err, never Ok(None).
+            // Indeterminate silence is never permission to speak.
+            let page = self
+                .source
+                .list_audit_records(cursor)
+                .map_err(|e| ScanError::Transport(e))?;
 
             pages_fetched += 1;
             if pages_fetched > MAX_PAGES {
@@ -147,16 +208,23 @@ impl<S: AuditRecordSource> PdsClient for LivePdsClient<S> {
             }
 
             for record in &page.records {
-                // NAIVE (commit A): requires full parse (all 7 fields)
-                // before checking derivationInput match. A record whose
-                // derivationInput matches but is missing a sibling field
-                // (e.g. crash-mid-flight missing createdAt) parses to
-                // None and is silently skipped — invisible to the lock.
-                // Commit B: check derivationInput field FIRST.
-                if let Some(entry) = parse_audit_entry(record) {
-                    if entry.pending.derivation_input == derivation_input {
-                        return Ok(Some(entry));
-                    }
+                // F-2: match the derivationInput field FIRST, before
+                // attempting full parse. A record whose derivationInput
+                // matches but is missing a sibling field (e.g. crash-
+                // mid-flight missing createdAt) still blocks — it is
+                // never skipped.
+                let is_match = record
+                    .value
+                    .get("derivationInput")
+                    .and_then(|v| v.as_str())
+                    .map(|s| s == derivation_input)
+                    .unwrap_or(false);
+
+                if is_match {
+                    // Match confirmed — construct the best AuditEntry we can.
+                    // Missing sibling fields are empty strings; the pipeline
+                    // treats Ok(Some(_)) as block regardless.
+                    return Ok(Some(parse_audit_entry_best_effort(record)));
                 }
             }
 
