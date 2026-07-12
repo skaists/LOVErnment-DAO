@@ -110,10 +110,18 @@ impl XrpcTransport for NoopXrpcTransport {
 // ─── Collection / lexicon constants ────────────────────────────
 
 /// The audit-entry collection NSID.
-const AUDIT_COLLECTION: &str = "social.skaists.alpha.audit.entry";
+pub(crate) const AUDIT_COLLECTION: &str = "social.skaists.alpha.audit.entry";
 
 /// The post collection NSID (VOICE-1 §1: app.bsky.feed.post at genesis).
 const POST_COLLECTION: &str = "app.bsky.feed.post";
+
+/// bQueenBee's DID — the RBI genesis chair (SPIRIT-1 §1). D-009c wiring:
+/// this constant replaces the `"repo": "bQueenBee"` placeholders in every
+/// write body. It is a PUBLIC value (resolvable in the PLC directory), so
+/// it may live in code; only the app password may not. The live transport
+/// additionally verifies the authenticated session's DID equals this before
+/// any write — fail-closed against posting as the wrong account.
+pub(crate) const BQUEENBEE_DID: &str = "did:plc:77xbxwg7vh3wh5pmzvid65hc";
 
 // ─── LivePdsClient ──────────────────────────────────────────────
 
@@ -325,8 +333,7 @@ impl<S: AuditRecordSource, T: XrpcTransport> PdsClient for LivePdsClient<S, T> {
             "failureError": null,
         });
         let body = serde_json::json!({
-            // D-009c WIRING PREREQUISITE: placeholder DID — replace with real bQueenBee DID at credential ceremony.
-            "repo": "bQueenBee", // placeholder — D-009c wiring provides real DID
+            "repo": BQUEENBEE_DID,
             "collection": AUDIT_COLLECTION,
             "rkey": key,
             "record": record,
@@ -345,8 +352,7 @@ impl<S: AuditRecordSource, T: XrpcTransport> PdsClient for LivePdsClient<S, T> {
             "createdAt": self.now_rfc3339,
         });
         let body = serde_json::json!({
-            // D-009c WIRING PREREQUISITE: placeholder DID — replace with real bQueenBee DID at credential ceremony.
-            "repo": "bQueenBee",
+            "repo": BQUEENBEE_DID,
             "collection": POST_COLLECTION,
             "record": record,
         });
@@ -386,8 +392,7 @@ impl<S: AuditRecordSource, T: XrpcTransport> PdsClient for LivePdsClient<S, T> {
             "failureError": null,
         });
         let body = serde_json::json!({
-            // D-009c WIRING PREREQUISITE: placeholder DID — replace with real bQueenBee DID at credential ceremony.
-            "repo": "bQueenBee",
+            "repo": BQUEENBEE_DID,
             "collection": AUDIT_COLLECTION,
             "rkey": key,
             "record": record,
@@ -401,8 +406,7 @@ impl<S: AuditRecordSource, T: XrpcTransport> PdsClient for LivePdsClient<S, T> {
     fn remove_entry(&mut self, key: &str) -> Result<(), String> {
         // deleteRecord. Founder-clearance tooling only; pipeline never calls.
         let body = serde_json::json!({
-            // D-009c WIRING PREREQUISITE: placeholder DID — replace with real bQueenBee DID at credential ceremony.
-            "repo": "bQueenBee",
+            "repo": BQUEENBEE_DID,
             "collection": AUDIT_COLLECTION,
             "rkey": key,
         });
@@ -419,8 +423,7 @@ impl<S: AuditRecordSource, T: XrpcTransport> PdsClient for LivePdsClient<S, T> {
             "failureError": error,
         });
         let body = serde_json::json!({
-            // D-009c WIRING PREREQUISITE: placeholder DID — replace with real bQueenBee DID at credential ceremony.
-            "repo": "bQueenBee",
+            "repo": BQUEENBEE_DID,
             "collection": AUDIT_COLLECTION,
             "rkey": key,
             "record": record,

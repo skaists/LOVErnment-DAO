@@ -8,7 +8,11 @@ description = "bQueenBee publishing pipeline — adapters, wrapper, heartbeat, a
 [dependencies]
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+# D-009c: the real ATProto XRPC transport speaks HTTPS. ureq (synchronous)
+# with rustls (pure-Rust TLS), sitting BEHIND the XrpcTransport /
+# AuditRecordSource trait boundary the offline laps proved against mocks.
+# Tests never touch the network. Founder-selected supply chain (2026-07-12).
+ureq = { version = "2", features = ["json"] }
 
 [dev-dependencies]
 serde_json = "1"
-# Fixtures and assertions are pure — no network deps in this crate.
