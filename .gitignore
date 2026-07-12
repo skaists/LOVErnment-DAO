@@ -31,3 +31,6 @@ docs/design/
 .idea/
 .vscode/
 *.swp
+
+.env
+queenbee.env
