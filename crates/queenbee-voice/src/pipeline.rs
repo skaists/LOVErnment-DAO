@@ -27,6 +27,32 @@ use std::collections::HashSet;
 /// Injected clock — returns RFC 3339 UTC timestamp. No wall-time in tests.
 pub trait Clock {
     fn now_rfc3339(&self) -> String;
+    /// Microseconds since the Unix epoch. Used to generate the audit
+    /// record's tid rkey (Ruling B, D-009c). Injected so tests are
+    /// deterministic.
+    fn now_micros(&self) -> u64;
+}
+
+/// The base32-sortable alphabet ATProto tids use (Ruling B, D-009c).
+const TID_ALPHABET: &[u8; 32] = b"234567abcdefghijklmnopqrstuvwxyz";
+
+/// Generate an ATProto tid (13-char, base32-sortable) from a microsecond
+/// timestamp and a clock id. The result is a VALID record key — only the
+/// tid alphabet, never `/` or `@` — so the audit entry's rkey can never be
+/// the derivationInput again (Ruling B). The derivationInput remains the
+/// FIELD the durable lock scans; the tid is only the record's storage key.
+pub fn tid_from_micros(micros: u64, clock_id: u64) -> String {
+    // tid = (micros << 10) | (clock_id & 0x3ff), encoded big-endian as 13
+    // base32 chars (65 bits of space; the top bit stays 0 for micros that
+    // fit in 53 bits — true for any real timestamp).
+    let mut n = (micros << 10) | (clock_id & 0x3ff);
+    let mut chars = [0u8; 13];
+    for slot in chars.iter_mut().rev() {
+        *slot = TID_ALPHABET[(n & 0x1f) as usize];
+        n >>= 5;
+    }
+    // Safe: every byte is drawn from the ASCII TID_ALPHABET.
+    String::from_utf8(chars.to_vec()).expect("tid alphabet is ASCII")
 }
 
 /// Injected SHA-256 hasher — returns hex digest of input bytes.
@@ -52,6 +78,10 @@ pub struct FinalizedEntry {
     pub pending: PendingEntry,
     pub post_uri: String,
     pub post_cid: String,
+    /// The audit record's tid rkey (Ruling B, D-009c). With the DID and the
+    /// audit collection, this forms the audit entry's at-uri — the ceremony
+    /// reports it and confirms its postUri field cross-references the post.
+    pub rkey: String,
 }
 
 /// Read-back of an audit entry from the PDS store.
@@ -250,8 +280,15 @@ impl Pipeline {
             created_at,
         };
 
-        // Create pending entry (real PDS record).
-        if let Err(e) = pds.create_pending_entry(&derivation_input, &pending) {
+        // Ruling B: the audit record's rkey is a generated tid — a VALID
+        // ATProto record key — NOT the derivationInput (which contains `/`
+        // and `@`). The derivationInput stays the FIELD the durable lock
+        // scans (find_entry_by_derivation_input); the tid is threaded through
+        // create -> mark/finalize so all three operate on the same record.
+        let rkey = tid_from_micros(clock.now_micros(), 0);
+
+        // Create pending entry (real PDS record, keyed by the tid rkey).
+        if let Err(e) = pds.create_pending_entry(&rkey, &pending) {
             return PipelineResult::PostFailed { error: e };
         }
 
@@ -259,13 +296,13 @@ impl Pipeline {
         let (post_uri, post_cid) = match pds.submit_post(&candidate.text) {
             Ok(t) => t,
             Err(e) => {
-                let _ = pds.mark_entry_failed(&derivation_input, &e);
+                let _ = pds.mark_entry_failed(&rkey, &e);
                 return PipelineResult::PostFailed { error: e };
             }
         };
 
         // Finalize entry with postUri/postCid.
-        if let Err(e) = pds.finalize_entry(&derivation_input, &pending, &post_uri, &post_cid) {
+        if let Err(e) = pds.finalize_entry(&rkey, &pending, &post_uri, &post_cid) {
             return PipelineResult::FinalizeFailed {
                 post_uri,
                 post_cid,
@@ -278,6 +315,7 @@ impl Pipeline {
                 pending,
                 post_uri,
                 post_cid,
+                rkey,
             },
         }
     }
