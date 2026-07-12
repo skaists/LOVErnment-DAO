@@ -365,7 +365,7 @@ impl<S: AuditRecordSource, T: XrpcTransport> PdsClient for LivePdsClient<S, T> {
         Ok((uri, cid))
     }
 
-    fn finalize_entry(&mut self, key: &str, uri: &str, cid: &str) -> Result<(), String> {
+    fn finalize_entry(&mut self, key: &str, _entry: &PendingEntry, uri: &str, cid: &str) -> Result<(), String> {
         // putRecord overwriting the same audit rkey with postUri/postCid filled.
         // In the real implementation this would first read the existing record
         // to preserve fields; for now we write the finalized shape.

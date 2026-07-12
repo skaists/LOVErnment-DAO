@@ -13,7 +13,7 @@
 use queenbee_voice::adapter::tree_landing::CommitFacts;
 use queenbee_voice::heartbeat::HeartbeatState;
 use queenbee_voice::pds::live_client::{
-    AuditRecordSource, LivePdsClient, RecordsPage, XrpcTransport,
+    AuditRecord, AuditRecordSource, LivePdsClient, RecordsPage, XrpcTransport,
 };
 use queenbee_voice::pipeline::{
     Clock, Hasher, PendingEntry, PdsClient, Pipeline, PipelineResult,
@@ -305,6 +305,7 @@ fn finalize_entry_happy_correct_put_record() {
 
     let result = client.finalize_entry(
         "test-key",
+        &make_pending(),
         "at://did:plc:test/app.bsky.feed.post/abc",
         "bafyrei_cid",
     );
@@ -431,7 +432,7 @@ impl PdsClient for RemoveTracker {
         }
     }
 
-    fn finalize_entry(&mut self, _key: &str, _uri: &str, _cid: &str) -> Result<(), String> {
+    fn finalize_entry(&mut self, _key: &str, _entry: &PendingEntry, _uri: &str, _cid: &str) -> Result<(), String> {
         if self.finalize_ok {
             Ok(())
         } else {
@@ -601,6 +602,201 @@ fn positive_integration_full_run_xrpc_sequence() {
         assert!(
             !matches!(call, XrpcCall::DeleteRecord(_)),
             "DeleteRecord must never appear in a successful run"
+        );
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  D-009b2 — Round-trip harness + marquee reds
+//
+//  The defect: finalize_entry writes only {$type, postUri, postCid},
+//  stripping derivationInput and every other field. After any
+//  successful post the audit record loses the field the durable
+//  lock scans on → restart re-posts.
+//
+//  These tests exercise the REAL LivePdsClient (not a mock
+//  PdsClient) with a shared read/write store, proving the defect
+//  and its cure at the XRPC boundary where it lives.
+// ═══════════════════════════════════════════════════════════════
+
+use std::rc::Rc;
+use std::collections::HashMap as StdHashMap;
+
+/// Shared backing store: records keyed by rkey. Both the read
+/// source and write transport reference the same Rc<RefCell<...>>,
+/// so a putRecord is immediately visible to listAuditRecords.
+#[derive(Clone, Default)]
+struct RoundTripStore {
+    records: Rc<RefCell<StdHashMap<String, serde_json::Value>>>,
+}
+
+struct RoundTripSource {
+    store: RoundTripStore,
+}
+
+impl AuditRecordSource for RoundTripSource {
+    fn list_audit_records(&self, _cursor: Option<String>) -> Result<RecordsPage, String> {
+        let records: Vec<AuditRecord> = self
+            .store
+            .records
+            .borrow()
+            .iter()
+            .map(|(rkey, value)| AuditRecord {
+                rkey: rkey.clone(),
+                value: value.clone(),
+            })
+            .collect();
+        Ok(RecordsPage {
+            records,
+            cursor: None,
+        })
+    }
+}
+
+struct RoundTripTransport {
+    store: RoundTripStore,
+}
+
+impl XrpcTransport for RoundTripTransport {
+    fn put_record(&mut self, body: serde_json::Value) -> Result<serde_json::Value, String> {
+        let rkey = body["rkey"]
+            .as_str()
+            .ok_or("putRecord missing rkey")?
+            .to_string();
+        let record = body["record"].clone();
+        self.store.records.borrow_mut().insert(rkey, record);
+        Ok(serde_json::json!({}))
+    }
+
+    fn create_record(&mut self, _body: serde_json::Value) -> Result<serde_json::Value, String> {
+        Ok(serde_json::json!({
+            "uri": "at://did:plc:test/app.bsky.feed.post/rt1",
+            "cid": "bafyrei_rt_cid",
+        }))
+    }
+
+    fn delete_record(&mut self, _body: serde_json::Value) -> Result<serde_json::Value, String> {
+        Ok(serde_json::json!({}))
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  MARQUEE RED #1 — the lock survives success
+//
+//  create → submit → finalize → find_entry_by_derivation_input
+//  must still return the entry with derivationInput intact.
+//  Against the current (buggy) finalize, derivationInput is
+//  stripped → find returns None → the lock is broken.
+// ═══════════════════════════════════════════════════════════════
+
+#[test]
+fn d009b2_marquee_red_1_lock_survives_success() {
+    let store = RoundTripStore::default();
+    let mut client = LivePdsClient::new(
+        RoundTripSource { store: store.clone() },
+        RoundTripTransport { store: store.clone() },
+    );
+    let pending = make_pending();
+
+    // 1. Create pending entry — writes full record to store.
+    client
+        .create_pending_entry("test-key", &pending)
+        .expect("create_pending must succeed");
+
+    // 2. Submit post.
+    let (uri, cid) = client
+        .submit_post("hello world")
+        .expect("submit_post must succeed");
+
+    // 3. Finalize — currently strips derivationInput.
+    client
+        .finalize_entry("test-key", &pending, &uri, &cid)
+        .expect("finalize must succeed");
+
+    // 4. THE LOCK: find_entry_by_derivation_input must still find it.
+    let result = client
+        .find_entry_by_derivation_input(&pending.derivation_input)
+        .expect("scan must not error");
+
+    let entry = result.expect(
+        "MUST find the entry after finalize — \
+         derivationInput must survive every terminal state. \
+         If this is None, the lock is broken on success.",
+    );
+
+    assert_eq!(
+        entry.pending.derivation_input,
+        pending.derivation_input,
+        "derivationInput must be intact after finalize"
+    );
+    assert_eq!(entry.post_uri.as_deref(), Some(uri.as_str()), "postUri must be set");
+    assert_eq!(entry.post_cid.as_deref(), Some(cid.as_str()), "postCid must be set");
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  MARQUEE RED #2 — no re-post after successful finalize
+//
+//  Run to success, then a FRESH pipeline (empty seen) over the
+//  same store → must get Duplicate. Against the current (buggy)
+//  finalize, derivationInput is stripped → the fresh scan returns
+//  Ok(None) → the pipeline posts again. This is the restart-
+//  durability proof, now covering the post-finalize state.
+// ═══════════════════════════════════════════════════════════════
+
+#[test]
+fn d009b2_marquee_red_2_no_repost_after_finalize_restart() {
+    let store = RoundTripStore::default();
+
+    // --- Pipeline A: run to success ---
+    {
+        let mut client = LivePdsClient::new(
+            RoundTripSource { store: store.clone() },
+            RoundTripTransport { store: store.clone() },
+        );
+        let mut pipeline = make_pipeline();
+        let mut counter = MockCounter { count: 0 };
+
+        let result = pipeline.run(
+            &clean_facts(),
+            &mut client,
+            &mut counter,
+            HeartbeatState::Alive,
+            &FixedClock,
+            &Fnv1aHasher,
+        );
+
+        assert!(
+            matches!(result, PipelineResult::Success { .. }),
+            "first run must succeed, got {result:?}"
+        );
+    }
+
+    // --- Pipeline B: fresh pipeline, same store, empty seen ---
+    {
+        let mut client = LivePdsClient::new(
+            RoundTripSource { store: store.clone() },
+            RoundTripTransport { store: store.clone() },
+        );
+        let mut fresh_pipeline = make_pipeline();
+        let mut counter_b = MockCounter { count: 0 };
+
+        let result = fresh_pipeline.run(
+            &clean_facts(),
+            &mut client,
+            &mut counter_b,
+            HeartbeatState::Alive,
+            &FixedClock,
+            &Fnv1aHasher,
+        );
+
+        assert_eq!(
+            result,
+            PipelineResult::Duplicate,
+            "fresh pipeline over the same store must refuse — \
+             derivationInput must survive finalize for the durable \
+             lock to hold across restarts. If this is Success, the \
+             lock is broken on success and the restart double-post \
+             window is open."
         );
     }
 }

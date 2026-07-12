@@ -101,7 +101,7 @@ impl PdsClient for DurableMockPds {
         )))
     }
 
-    fn finalize_entry(&mut self, key: &str, uri: &str, cid: &str) -> Result<(), String> {
+    fn finalize_entry(&mut self, key: &str, _entry: &PendingEntry, uri: &str, cid: &str) -> Result<(), String> {
         let result = self.finalize_result.clone().unwrap_or(Ok(()));
         if result.is_ok() {
             if let Some(entry) = self.store.borrow_mut().get_mut(key) {

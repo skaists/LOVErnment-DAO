@@ -242,7 +242,7 @@ impl PdsClient for ScanTestPds {
         ))
     }
 
-    fn finalize_entry(&mut self, _key: &str, _uri: &str, _cid: &str) -> Result<(), String> {
+    fn finalize_entry(&mut self, _key: &str, _entry: &PendingEntry, _uri: &str, _cid: &str) -> Result<(), String> {
         Ok(())
     }
 
