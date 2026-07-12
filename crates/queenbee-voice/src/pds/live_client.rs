@@ -325,6 +325,7 @@ impl<S: AuditRecordSource, T: XrpcTransport> PdsClient for LivePdsClient<S, T> {
             "failureError": null,
         });
         let body = serde_json::json!({
+            // D-009c WIRING PREREQUISITE: placeholder DID — replace with real bQueenBee DID at credential ceremony.
             "repo": "bQueenBee", // placeholder — D-009c wiring provides real DID
             "collection": AUDIT_COLLECTION,
             "rkey": key,
@@ -344,6 +345,7 @@ impl<S: AuditRecordSource, T: XrpcTransport> PdsClient for LivePdsClient<S, T> {
             "createdAt": self.now_rfc3339,
         });
         let body = serde_json::json!({
+            // D-009c WIRING PREREQUISITE: placeholder DID — replace with real bQueenBee DID at credential ceremony.
             "repo": "bQueenBee",
             "collection": POST_COLLECTION,
             "record": record,
@@ -365,16 +367,26 @@ impl<S: AuditRecordSource, T: XrpcTransport> PdsClient for LivePdsClient<S, T> {
         Ok((uri, cid))
     }
 
-    fn finalize_entry(&mut self, key: &str, _entry: &PendingEntry, uri: &str, cid: &str) -> Result<(), String> {
-        // putRecord overwriting the same audit rkey with postUri/postCid filled.
-        // In the real implementation this would first read the existing record
-        // to preserve fields; for now we write the finalized shape.
+    fn finalize_entry(&mut self, key: &str, entry: &PendingEntry, uri: &str, cid: &str) -> Result<(), String> {
+        // Carry-forward (D-009b2): putRecord the FULL record — all pending
+        // fields plus postUri/postCid. The prior implementation wrote only
+        // {$type, postUri, postCid}, a replace that stripped derivationInput
+        // and broke the durable lock on every successful post.
         let record = serde_json::json!({
             "$type": AUDIT_COLLECTION,
+            "derivationInput": entry.derivation_input,
+            "inputDigest": entry.input_digest,
+            "adapterClass": entry.adapter_class,
+            "adapterDigest": entry.adapter_digest,
+            "modelDigest": entry.model_digest,
+            "promptDigest": entry.prompt_digest,
+            "createdAt": entry.created_at,
             "postUri": uri,
             "postCid": cid,
+            "failureError": null,
         });
         let body = serde_json::json!({
+            // D-009c WIRING PREREQUISITE: placeholder DID — replace with real bQueenBee DID at credential ceremony.
             "repo": "bQueenBee",
             "collection": AUDIT_COLLECTION,
             "rkey": key,
@@ -389,6 +401,7 @@ impl<S: AuditRecordSource, T: XrpcTransport> PdsClient for LivePdsClient<S, T> {
     fn remove_entry(&mut self, key: &str) -> Result<(), String> {
         // deleteRecord. Founder-clearance tooling only; pipeline never calls.
         let body = serde_json::json!({
+            // D-009c WIRING PREREQUISITE: placeholder DID — replace with real bQueenBee DID at credential ceremony.
             "repo": "bQueenBee",
             "collection": AUDIT_COLLECTION,
             "rkey": key,
@@ -406,6 +419,7 @@ impl<S: AuditRecordSource, T: XrpcTransport> PdsClient for LivePdsClient<S, T> {
             "failureError": error,
         });
         let body = serde_json::json!({
+            // D-009c WIRING PREREQUISITE: placeholder DID — replace with real bQueenBee DID at credential ceremony.
             "repo": "bQueenBee",
             "collection": AUDIT_COLLECTION,
             "rkey": key,

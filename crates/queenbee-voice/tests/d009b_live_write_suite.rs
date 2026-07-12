@@ -302,10 +302,11 @@ fn submit_post_5xx_returns_err() {
 fn finalize_entry_happy_correct_put_record() {
     let transport = MockXrpcTransport::new(vec![Ok(serde_json::json!({}))]);
     let mut client = LivePdsClient::new(EmptySource, transport);
+    let pending = make_pending();
 
     let result = client.finalize_entry(
         "test-key",
-        &make_pending(),
+        &pending,
         "at://did:plc:test/app.bsky.feed.post/abc",
         "bafyrei_cid",
     );
@@ -316,11 +317,25 @@ fn finalize_entry_happy_correct_put_record() {
     match &calls[0] {
         XrpcCall::PutRecord(body) => {
             assert_eq!(body["rkey"], "test-key");
+            let record = &body["record"];
+            // D-009b2: ALL pending fields must survive finalize (carry-forward).
             assert_eq!(
-                body["record"]["postUri"],
+                record["derivationInput"],
+                "skaists/LOVErnment-DAO@884b2bce",
+                "derivationInput must be preserved on finalize"
+            );
+            assert_eq!(record["inputDigest"], "test_digest");
+            assert_eq!(record["adapterClass"], "TreeLanding");
+            assert_eq!(record["adapterDigest"], "adapter_d");
+            assert_eq!(record["modelDigest"], "model_d");
+            assert_eq!(record["promptDigest"], "prompt_d");
+            assert_eq!(record["createdAt"], "2026-07-12T00:00:00Z");
+            assert_eq!(
+                record["postUri"],
                 "at://did:plc:test/app.bsky.feed.post/abc"
             );
-            assert_eq!(body["record"]["postCid"], "bafyrei_cid");
+            assert_eq!(record["postCid"], "bafyrei_cid");
+            assert!(record["failureError"].is_null(), "failureError must be null on finalize");
         }
         other => panic!("expected PutRecord, got {other:?}"),
     }
