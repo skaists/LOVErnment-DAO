@@ -19,7 +19,11 @@ impl Hasher for RealSha256 {
     fn sha256_hex(&self, input: &[u8]) -> String {
         let mut hasher = Sha256::new();
         hasher.update(input);
-        hasher.finalize().iter().map(|b| format!("{b:02x}")).collect()
+        hasher
+            .finalize()
+            .iter()
+            .map(|b| format!("{b:02x}"))
+            .collect()
     }
 }
 
@@ -75,16 +79,21 @@ pub fn run_first_word<C: PdsClient>(
 ) -> Result<CeremonyReport, String> {
     let mut pipeline = Pipeline::new(adapter_digest, model_digest, prompt_digest);
     let mut counter = ZeroCounter(0);
-    match pipeline.run(facts, client, &mut counter, HeartbeatState::Alive, clock, hasher) {
+    match pipeline.run(
+        facts,
+        client,
+        &mut counter,
+        HeartbeatState::Alive,
+        clock,
+        hasher,
+    ) {
         PipelineResult::Success { entry } => {
             let audit_uri = format!("at://{BQUEENBEE_DID}/{AUDIT_COLLECTION}/{}", entry.rkey);
             // Q-6: re-read the entry by its derivationInput FIELD and confirm
             // it cross-references the post.
             let cross_references =
                 match client.find_entry_by_derivation_input(&entry.pending.derivation_input) {
-                    Ok(Some(found)) => {
-                        found.post_uri.as_deref() == Some(entry.post_uri.as_str())
-                    }
+                    Ok(Some(found)) => found.post_uri.as_deref() == Some(entry.post_uri.as_str()),
                     _ => false,
                 };
             Ok(CeremonyReport {

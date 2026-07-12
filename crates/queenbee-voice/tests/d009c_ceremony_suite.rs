@@ -191,7 +191,10 @@ fn ceremony_produces_matched_cross_referencing_pair() {
         ),
         "audit uri = at://did/collection/<tid>, never the derivationInput"
     );
-    assert!(!report.audit_uri.contains('@'), "audit rkey is a tid, not repo@sha");
+    assert!(
+        !report.audit_uri.contains('@'),
+        "audit rkey is a tid, not repo@sha"
+    );
     // The derivationInput is the canonical repo@sha.
     assert_eq!(
         report.derivation_input,

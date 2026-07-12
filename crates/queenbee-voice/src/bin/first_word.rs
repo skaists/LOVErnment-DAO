@@ -20,8 +20,7 @@ use std::process::Command;
 const GENESIS: &str = "884b2bce";
 /// Audit-tuple labels (founder Ruling / D-009c docket).
 const MODEL_DIGEST: &str = "opus-4-8";
-const PROMPT_DIGEST: &str =
-    "0c44a15d4aa9d1811751f1cd04c4cb4bb9aa56b925f68a942f4036ff358402cf";
+const PROMPT_DIGEST: &str = "0c44a15d4aa9d1811751f1cd04c4cb4bb9aa56b925f68a942f4036ff358402cf";
 /// adapterDigest = sha256 of the merged TreeLanding adapter source, embedded
 /// at compile time and hashed at runtime (computed + reported below).
 const TREE_LANDING_SRC: &[u8] = include_bytes!("../adapter/tree_landing.rs");

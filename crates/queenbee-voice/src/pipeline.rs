@@ -42,10 +42,17 @@ const TID_ALPHABET: &[u8; 32] = b"234567abcdefghijklmnopqrstuvwxyz";
 /// the derivationInput again (Ruling B). The derivationInput remains the
 /// FIELD the durable lock scans; the tid is only the record's storage key.
 pub fn tid_from_micros(micros: u64, clock_id: u64) -> String {
-    // COMMIT A STUB — a constant valid-shape tid. Real encoding in commit B.
-    let _ = (micros, clock_id);
-    let _ = TID_ALPHABET;
-    "aaaaaaaaaaaaa".to_string()
+    // tid = (micros << 10) | (clock_id & 0x3ff), encoded big-endian as 13
+    // base32 chars (65 bits of space; the top bit stays 0 for micros that
+    // fit in 53 bits — true for any real timestamp).
+    let mut n = (micros << 10) | (clock_id & 0x3ff);
+    let mut chars = [0u8; 13];
+    for slot in chars.iter_mut().rev() {
+        *slot = TID_ALPHABET[(n & 0x1f) as usize];
+        n >>= 5;
+    }
+    // Safe: every byte is drawn from the ASCII TID_ALPHABET.
+    String::from_utf8(chars.to_vec()).expect("tid alphabet is ASCII")
 }
 
 /// Injected SHA-256 hasher — returns hex digest of input bytes.

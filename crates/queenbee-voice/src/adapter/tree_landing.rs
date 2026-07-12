@@ -46,9 +46,7 @@ pub struct CommitFacts {
 /// for a DCO tree — a random off-tree sha is refused (not reachable); an
 /// unsigned-but-DCO commit on main is accepted. It is NOT a GPG check.
 pub fn provenance_verified(reachable_on_main: bool, dco_present: bool) -> bool {
-    // COMMIT A STUB — real check in commit B.
-    let _ = (reachable_on_main, dco_present);
-    false
+    reachable_on_main && dco_present
 }
 
 /// A candidate post produced by an adapter. The pipeline submits this
