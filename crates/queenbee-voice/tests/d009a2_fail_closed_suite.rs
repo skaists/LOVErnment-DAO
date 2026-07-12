@@ -15,7 +15,7 @@
 #![forbid(unsafe_code)]
 
 use queenbee_voice::pds::live_client::{
-    AuditRecord, AuditRecordSource, LivePdsClient, RecordsPage,
+    AuditRecord, AuditRecordSource, LivePdsClient, NoopXrpcTransport, RecordsPage,
 };
 use queenbee_voice::pipeline::{
     AuditEntry, Clock, Hasher, PdsClient, PendingEntry, Pipeline, PipelineResult, ScanError,
@@ -242,7 +242,7 @@ impl PdsClient for ScanTestPds {
         ))
     }
 
-    fn finalize_entry(&mut self, _key: &str, _uri: &str, _cid: &str) -> Result<(), String> {
+    fn finalize_entry(&mut self, _key: &str, _entry: &PendingEntry, _uri: &str, _cid: &str) -> Result<(), String> {
         Ok(())
     }
 
@@ -275,7 +275,7 @@ fn transport_err_mid_scan_returns_err() {
         Err("connection reset".to_string()),
     ]);
 
-    let client = LivePdsClient::new(source);
+    let client = LivePdsClient::new(source, NoopXrpcTransport::default());
     let result = client.find_entry_by_derivation_input(QUERY);
 
     assert!(
@@ -307,7 +307,7 @@ fn transport_err_first_page_returns_err() {
         Err("timeout".to_string()),
     ]);
 
-    let client = LivePdsClient::new(source);
+    let client = LivePdsClient::new(source, NoopXrpcTransport::default());
     let result = client.find_entry_by_derivation_input(QUERY);
 
     assert!(
@@ -333,7 +333,7 @@ fn matching_but_partial_record_blocks() {
         }),
     ]);
 
-    let client = LivePdsClient::new(source);
+    let client = LivePdsClient::new(source, NoopXrpcTransport::default());
     let result = client.find_entry_by_derivation_input(QUERY);
 
     assert!(
@@ -438,7 +438,7 @@ fn cursor_exhaustion_entry_on_page_3() {
         }),
     ]);
 
-    let client = LivePdsClient::new(source);
+    let client = LivePdsClient::new(source, NoopXrpcTransport::default());
     let result = client.find_entry_by_derivation_input(QUERY).unwrap();
 
     assert!(
@@ -469,7 +469,7 @@ fn pending_entry_for_input_is_returned() {
         }),
     ]);
 
-    let client = LivePdsClient::new(source);
+    let client = LivePdsClient::new(source, NoopXrpcTransport::default());
     let result = client.find_entry_by_derivation_input(QUERY).unwrap();
 
     let entry = result.expect("pending entry must be returned, not skipped");
@@ -499,7 +499,7 @@ fn finalized_entry_for_input_is_returned() {
         }),
     ]);
 
-    let client = LivePdsClient::new(source);
+    let client = LivePdsClient::new(source, NoopXrpcTransport::default());
     let result = client.find_entry_by_derivation_input(QUERY).unwrap();
 
     let entry = result.expect("finalized entry must be returned");
@@ -537,7 +537,7 @@ fn genuine_absence_all_pages_exhausted_returns_ok_none() {
         }),
     ]);
 
-    let client = LivePdsClient::new(source);
+    let client = LivePdsClient::new(source, NoopXrpcTransport::default());
     let result = client.find_entry_by_derivation_input(QUERY).unwrap();
 
     assert!(
@@ -570,7 +570,7 @@ fn field_discipline_rkey_not_match_field() {
         }),
     ]);
 
-    let client = LivePdsClient::new(source);
+    let client = LivePdsClient::new(source, NoopXrpcTransport::default());
     let result = client.find_entry_by_derivation_input(QUERY).unwrap();
 
     assert!(
@@ -592,7 +592,7 @@ fn empty_collection_returns_ok_none() {
         }),
     ]);
 
-    let client = LivePdsClient::new(source);
+    let client = LivePdsClient::new(source, NoopXrpcTransport::default());
     let result = client.find_entry_by_derivation_input(QUERY).unwrap();
 
     assert!(result.is_none(), "empty collection must return Ok(None)");
@@ -634,7 +634,7 @@ fn positive_multi_page_finds_exact_entry() {
         }),
     ]);
 
-    let client = LivePdsClient::new(source);
+    let client = LivePdsClient::new(source, NoopXrpcTransport::default());
     let result = client.find_entry_by_derivation_input(QUERY).unwrap();
 
     let entry = result.expect("must find the entry on page 3");
@@ -692,7 +692,7 @@ fn pagination_bound_cyclic_cursor_returns_indeterminate() {
         .collect();
 
     let source = MockSource::new(responses);
-    let client = LivePdsClient::new(source);
+    let client = LivePdsClient::new(source, NoopXrpcTransport::default());
     let result = client.find_entry_by_derivation_input(QUERY);
 
     assert!(
@@ -729,9 +729,10 @@ fn canonical_derivation_input_exact_match_no_normalization() {
         }),
     ]);
 
-    let client = LivePdsClient::new(source);
+    let client = LivePdsClient::new(source, NoopXrpcTransport::default());
     let result = client.find_entry_by_derivation_input(QUERY).unwrap();
 
     let entry = result.expect("exact-string match must find the canonical entry");
     assert_eq!(entry.pending.derivation_input, QUERY);
 }
+

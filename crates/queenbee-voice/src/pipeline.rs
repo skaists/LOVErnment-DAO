@@ -107,7 +107,7 @@ pub trait PdsClient {
     ) -> Result<Option<AuditEntry>, ScanError>;
     fn create_pending_entry(&mut self, key: &str, entry: &PendingEntry) -> Result<(), String>;
     fn submit_post(&mut self, text: &str) -> Result<(String, String), String>;
-    fn finalize_entry(&mut self, key: &str, uri: &str, cid: &str) -> Result<(), String>;
+    fn finalize_entry(&mut self, key: &str, entry: &PendingEntry, uri: &str, cid: &str) -> Result<(), String>;
     fn remove_entry(&mut self, key: &str) -> Result<(), String>;
     fn mark_entry_failed(&mut self, key: &str, error: &str) -> Result<(), String>;
 }
@@ -265,7 +265,7 @@ impl Pipeline {
         };
 
         // Finalize entry with postUri/postCid.
-        if let Err(e) = pds.finalize_entry(&derivation_input, &post_uri, &post_cid) {
+        if let Err(e) = pds.finalize_entry(&derivation_input, &pending, &post_uri, &post_cid) {
             return PipelineResult::FinalizeFailed {
                 post_uri,
                 post_cid,
