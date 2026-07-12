@@ -77,11 +77,34 @@ pub struct AuditEntry {
 /// - `submit_post`: submit the post text. Returns (uri, cid) on success.
 /// - `finalize_entry`: update the entry with postUri/postCid. Returns
 ///   Ok if the finalization succeeded.
-/// - `remove_entry`: delete a pending entry (cleanup on post failure).
+/// - `remove_entry`: founder-clearance tooling — no pipeline caller.
+///   Since D-008r3, post-failure marks failed and nothing in the pipeline removes.
+/// Error from the audit-entry scan — never flattened to `None`.
+/// G-Q (founder ruling 2026-07-11): a double-post lock must fail
+/// **closed**. When the scan cannot determine whether an entry exists,
+/// the pipeline does not post. Indeterminate silence is never
+/// permission to speak.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ScanError {
+    /// Transport failure during listRecords (timeout, 429, 5xx,
+    /// connection reset, token refresh) — at any point in pagination.
+    Transport(String),
+    /// Indeterminate listing — pagination bound exceeded, cyclic
+    /// cursor, or other non-transport ambiguity.
+    Indeterminate(String),
+}
+
 pub trait PdsClient {
     /// Durable idempotence check — returns the entry if one exists
     /// for this derivation_input, whether pending or finalized.
-    fn find_entry_by_derivation_input(&self, derivation_input: &str) -> Option<AuditEntry>;
+    ///
+    /// `Err(ScanError)` means the scan could not determine whether an
+    /// entry exists — the pipeline must treat this as "blocked," never
+    /// as clear-to-post (G-Q).
+    fn find_entry_by_derivation_input(
+        &self,
+        derivation_input: &str,
+    ) -> Result<Option<AuditEntry>, ScanError>;
     fn create_pending_entry(&mut self, key: &str, entry: &PendingEntry) -> Result<(), String>;
     fn submit_post(&mut self, text: &str) -> Result<(String, String), String>;
     fn finalize_entry(&mut self, key: &str, uri: &str, cid: &str) -> Result<(), String>;
@@ -109,6 +132,10 @@ pub enum PipelineResult {
     /// Same derivation_input already in the audit trail or in-process mark.
     /// Clearance is a founder act, out of code's reach.
     Duplicate,
+    /// The audit scan could not determine whether an entry exists
+    /// (G-Q). The pipeline did NOT post. Nothing was persisted.
+    /// Same disposition as a crashed attempt — clearance is a founder act.
+    ScanAborted { error: String },
 }
 
 /// The pipeline — holds idempotence state and adapter/prompt digests.
@@ -168,8 +195,16 @@ impl Pipeline {
 
         // DURABLE idempotence: the audit trail is the lock.
         // Any existing entry (pending or finalized) → refuse.
-        if pds.find_entry_by_derivation_input(&derivation_input).is_some() {
-            return PipelineResult::Duplicate;
+        // Scan error → abort-and-surface (G-Q: indeterminate silence
+        // is never permission to speak).
+        match pds.find_entry_by_derivation_input(&derivation_input) {
+            Ok(Some(_)) => return PipelineResult::Duplicate,
+            Err(e) => {
+                return PipelineResult::ScanAborted {
+                    error: format!("{:?}", e),
+                }
+            }
+            Ok(None) => { /* clear to proceed */ }
         }
 
         // In-process fast path.

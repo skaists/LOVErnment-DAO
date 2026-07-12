@@ -1,0 +1,277 @@
+//! The live PdsClient — talks to an ATProto PDS.
+//!
+//! `social.skaists.alpha.audit.entry` is `key: tid`. ATProto's
+//! `com.atproto.repo.listRecords` returns records by collection,
+//! keyed by their tid rkey; there is **no server-side query over a
+//! record's fields.** So `find_entry_by_derivation_input` is a
+//! **client-side field scan**: paginate `listRecords`, compare each
+//! record's `derivationInput` field to the query, return the first
+//! match (pending or finalized — both block, per the durable-lock
+//! law). `None` only after **all pages are exhausted** with no match.
+//!
+//! A premature `None` — from an unfollowed cursor, a dropped page,
+//! an early return, or a **swallowed transport error** — reopens the
+//! exact window the d008 arc closed. G-Q: fail closed, always.
+//!
+//! **Canonical `derivationInput` form** (F-4): `repo@sha` where `repo`
+//! is `owner/name` (GitHub canonical) and `sha` is the full 40-char
+//! lowercase hex git object ID. One form, enforced at the write
+//! boundary (pipeline `run()` constructs it). The read path uses
+//! exact-string `==` with no normalization — no guessing at equivalence.
+
+use crate::pipeline::{AuditEntry, PendingEntry, PdsClient, ScanError};
+
+// ─── HTTP boundary ──────────────────────────────────────────────
+
+/// HTTP boundary — abstracts `com.atproto.repo.listRecords` for the
+/// `social.skaists.alpha.audit.entry` collection.
+///
+/// The live client depends on this trait; tests inject a fake that
+/// serves canned pages. **No network in any test.**
+pub trait AuditRecordSource {
+    /// Fetch one page of audit-entry records.
+    ///
+    /// `cursor: None` starts from the beginning; `Some(cursor)`
+    /// continues from the given cursor. Returns `Err` on transport
+    /// failure.
+    fn list_audit_records(&self, cursor: Option<String>) -> Result<RecordsPage, String>;
+}
+
+/// One page of results from `listRecords`.
+#[derive(Debug, Clone)]
+pub struct RecordsPage {
+    /// Records on this page.
+    pub records: Vec<AuditRecord>,
+    /// Cursor for the next page; `None` means no more pages.
+    pub cursor: Option<String>,
+}
+
+/// One record from the audit-entry collection.
+#[derive(Debug, Clone)]
+pub struct AuditRecord {
+    /// The record's key (tid rkey). **NOT the match field** — the scan
+    /// reads `derivationInput` from the record's value, never the rkey.
+    /// A record whose rkey coincidentally resembles the query must not
+    /// be treated as a match.
+    pub rkey: String,
+    /// The raw record value. The live client parses fields from this.
+    pub value: serde_json::Value,
+}
+
+// ─── Pagination bound (F-5) ────────────────────────────────────
+
+/// Maximum pages fetched in a single scan before returning
+/// `Err(ScanError::Indeterminate)`. Guards against cyclic/repeating
+/// cursors. 1000 pages × ~100 records/page = 100k entries — far beyond
+/// any reasonable audit trail.
+const MAX_PAGES: u32 = 1000;
+
+// ─── LivePdsClient ──────────────────────────────────────────────
+
+/// The live PdsClient. Generic over the HTTP boundary so tests can
+/// inject a mock transport.
+pub struct LivePdsClient<S: AuditRecordSource> {
+    source: S,
+}
+
+impl<S: AuditRecordSource> LivePdsClient<S> {
+    pub fn new(source: S) -> Self {
+        Self { source }
+    }
+
+    /// Borrow the underlying source — for test inspection.
+    pub fn source(&self) -> &S {
+        &self.source
+    }
+}
+
+// ─── Record parsing ────────────────────────────────────────────
+
+/// Parse a raw record value into an `AuditEntry` (strict — all fields
+/// required). Returns `None` if any required field is missing.
+/// Used by tests for assertions against well-formed records.
+#[allow(dead_code)]
+fn parse_audit_entry_strict(record: &AuditRecord) -> Option<AuditEntry> {
+    let v = &record.value;
+    Some(AuditEntry {
+        pending: PendingEntry {
+            derivation_input: v.get("derivationInput")?.as_str()?.to_string(),
+            input_digest: v.get("inputDigest")?.as_str()?.to_string(),
+            adapter_class: v.get("adapterClass")?.as_str()?.to_string(),
+            adapter_digest: v.get("adapterDigest")?.as_str()?.to_string(),
+            model_digest: v.get("modelDigest")?.as_str()?.to_string(),
+            prompt_digest: v.get("promptDigest")?.as_str()?.to_string(),
+            created_at: v.get("createdAt")?.as_str()?.to_string(),
+        },
+        post_uri: v
+            .get("postUri")
+            .and_then(|v| v.as_str())
+            .map(String::from),
+        post_cid: v
+            .get("postCid")
+            .and_then(|v| v.as_str())
+            .map(String::from),
+        failure_error: v
+            .get("failureError")
+            .and_then(|v| v.as_str())
+            .map(String::from),
+    })
+}
+
+/// Best-effort parse — used after derivationInput match is confirmed.
+/// Missing fields are filled with empty strings. The pipeline treats
+/// `Ok(Some(_))` as block regardless of field completeness — the match
+/// on `derivationInput` is what blocks, not the full parse.
+fn parse_audit_entry_best_effort(record: &AuditRecord) -> AuditEntry {
+    let v = &record.value;
+    AuditEntry {
+        pending: PendingEntry {
+            derivation_input: v
+                .get("derivationInput")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string(),
+            input_digest: v
+                .get("inputDigest")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string(),
+            adapter_class: v
+                .get("adapterClass")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string(),
+            adapter_digest: v
+                .get("adapterDigest")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string(),
+            model_digest: v
+                .get("modelDigest")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string(),
+            prompt_digest: v
+                .get("promptDigest")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string(),
+            created_at: v
+                .get("createdAt")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string(),
+        },
+        post_uri: v
+            .get("postUri")
+            .and_then(|v| v.as_str())
+            .map(String::from),
+        post_cid: v
+            .get("postCid")
+            .and_then(|v| v.as_str())
+            .map(String::from),
+        failure_error: v
+            .get("failureError")
+            .and_then(|v| v.as_str())
+            .map(String::from),
+    }
+}
+
+// ─── PdsClient impl ────────────────────────────────────────────
+//
+// D-009a2: fail-closed read scan.
+// F-1: transport Err propagates as Err(ScanError::Transport) — never Ok(None).
+// F-2: derivationInput field checked FIRST, before full parse attempt.
+// A matched-but-partial record (e.g. crash-mid-flight missing createdAt)
+// still blocks — it is never skipped.
+
+impl<S: AuditRecordSource> PdsClient for LivePdsClient<S> {
+    fn find_entry_by_derivation_input(
+        &self,
+        derivation_input: &str,
+    ) -> Result<Option<AuditEntry>, ScanError> {
+        let mut cursor = None;
+        let mut pages_fetched = 0u32;
+        loop {
+            // G-Q: transport failure → Err, never Ok(None).
+            // Indeterminate silence is never permission to speak.
+            let page = self
+                .source
+                .list_audit_records(cursor)
+                .map_err(|e| ScanError::Transport(e))?;
+
+            pages_fetched += 1;
+            if pages_fetched > MAX_PAGES {
+                return Err(ScanError::Indeterminate(format!(
+                    "pagination bound ({MAX_PAGES}) exceeded — possible cyclic cursor"
+                )));
+            }
+
+            for record in &page.records {
+                // F-2: match the derivationInput field FIRST, before
+                // attempting full parse. A record whose derivationInput
+                // matches but is missing a sibling field (e.g. crash-
+                // mid-flight missing createdAt) still blocks — it is
+                // never skipped.
+                let is_match = record
+                    .value
+                    .get("derivationInput")
+                    .and_then(|v| v.as_str())
+                    .map(|s| s == derivation_input)
+                    .unwrap_or(false);
+
+                if is_match {
+                    // Match confirmed — construct the best AuditEntry we can.
+                    // Missing sibling fields are empty strings; the pipeline
+                    // treats Ok(Some(_)) as block regardless.
+                    return Ok(Some(parse_audit_entry_best_effort(record)));
+                }
+            }
+
+            match page.cursor {
+                Some(next) => cursor = Some(next),
+                None => return Ok(None),
+            }
+        }
+    }
+
+    fn create_pending_entry(&mut self, _key: &str, _entry: &PendingEntry) -> Result<(), String> {
+        Err(
+            "D-009a2: write operations not implemented — live credentials are D-009b territory"
+                .to_string(),
+        )
+    }
+
+    fn submit_post(&mut self, _text: &str) -> Result<(String, String), String> {
+        Err(
+            "D-009a2: write operations not implemented — live credentials are D-009b territory"
+                .to_string(),
+        )
+    }
+
+    fn finalize_entry(
+        &mut self,
+        _key: &str,
+        _uri: &str,
+        _cid: &str,
+    ) -> Result<(), String> {
+        Err(
+            "D-009a2: write operations not implemented — live credentials are D-009b territory"
+                .to_string(),
+        )
+    }
+
+    fn remove_entry(&mut self, _key: &str) -> Result<(), String> {
+        Err(
+            "D-009a2: write operations not implemented — live credentials are D-009b territory"
+                .to_string(),
+        )
+    }
+
+    fn mark_entry_failed(&mut self, _key: &str, _error: &str) -> Result<(), String> {
+        Err(
+            "D-009a2: write operations not implemented — live credentials are D-009b territory"
+                .to_string(),
+        )
+    }
+}

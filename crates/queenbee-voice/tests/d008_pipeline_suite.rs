@@ -11,7 +11,7 @@
 use queenbee_voice::adapter::tree_landing::CommitFacts;
 use queenbee_voice::heartbeat::HeartbeatState;
 use queenbee_voice::pipeline::{
-    AuditEntry, Clock, Hasher, PdsClient, PendingEntry, Pipeline, PipelineResult,
+    AuditEntry, Clock, Hasher, PdsClient, PendingEntry, Pipeline, PipelineResult, ScanError,
 };
 use queenbee_voice::wrapper::{DailyCounter, SubmitResult};
 use std::cell::RefCell;
@@ -72,15 +72,18 @@ impl DurableMockPds {
 }
 
 impl PdsClient for DurableMockPds {
-    fn find_entry_by_derivation_input(&self, key: &str) -> Option<AuditEntry> {
-        self.store.borrow().get(key).map(
+    fn find_entry_by_derivation_input(
+        &self,
+        key: &str,
+    ) -> Result<Option<AuditEntry>, ScanError> {
+        Ok(self.store.borrow().get(key).map(
             |(pending, uri, cid, failure_error)| AuditEntry {
                 pending: pending.clone(),
                 post_uri: uri.clone(),
                 post_cid: cid.clone(),
                 failure_error: failure_error.clone(),
             },
-        )
+        ))
     }
 
     fn create_pending_entry(&mut self, key: &str, entry: &PendingEntry) -> Result<(), String> {
