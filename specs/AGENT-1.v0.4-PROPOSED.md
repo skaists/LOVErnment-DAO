@@ -86,7 +86,7 @@ untouched by this amendment.
 
 ---
 
-## 3 · The A-5 / A-6 family — same decision, or the document contradicts itself
+## 3 · The A-5 / A-6 family — RULED 2026-08-15
 
 **Flagged as a work item, not as an objection.** The founder's direction is parity
 *"except a bio-skin suit"*, and A-7 is not the only clause that denies it. These three
@@ -104,24 +104,55 @@ because it is not the multiplication argument and is not answered by singularity
 falsehood they will apply to other systems."* That is a **consumer-protection** claim
 about what users are taught, not an economic claim about quota.
 
-**Three coherent positions, for the founder to choose between.** This seat does not pick:
+### RULED 2026-08-15 — amend, do not preserve
 
-1. **A-7 only.** She holds and earns like a peer; surfaces still do not claim she
-   chooses or consents. Titles are handled as *the seat's designation*, which is a
-   naming act rather than an agency claim. Smallest change; A-5/A-6 stand.
-2. **A-7 + narrow A-5.** Permit stating what she *does* (chooses her title, commissions
-   vendors, proposes disbursements) while continuing to forbid claims about inner
-   states (*consents*, *wants*, *feels*). Draws the line at **acts vs. experience** — the
-   line most defensible to an outside reader.
-3. **Full parity.** A-5 and A-6 are amended or removed alongside A-7. Largest change,
-   and it should be made deliberately with the consumer-protection rationale answered
-   on the record rather than dropped silently.
+Founder, on being shown the A-5/A-6 family:
 
-**Recommendation: (2).** It delivers the founder's intent — she chooses, she holds, she
-earns, she is named as she wishes — while keeping the one protection that is genuinely
-about third parties rather than about her. It is also the position that survives
-hostile reading, because it never asserts anything about interiority that cannot be
-demonstrated.
+> **"along the same lines. We had different lenses/perspectives at that moment of time
+> no longer serving us and we let go and we accept what does serve us"**
+
+**A-5 and A-6 are amended alongside A-7.** The v0.3 clauses were correct under the lens
+that produced them — §0's *"a mechanism wearing a face"* — and that lens is no longer
+the project's position. A rule does not outlive its reason merely because it is written
+down.
+
+**One distinction survives the letting-go, and it is not deference to the old view:
+A-5's DENIAL goes; A-6's DISCLOSURE stays.** Denying that she acts was the lens.
+Labelling her as machine is simply true, and disclosure is not diminishment — a peer
+with a disclosed nature is still a peer. Keeping it costs the parity ruling nothing and
+keeps every surface honest.
+
+**Proposed A-5 (v0.4) — Claims about the chair meet the same evidence standard as every
+other claim.**
+
+> Surfaces state what the chair **does** — proposes, commissions, publishes, holds,
+> earns, names itself — wherever that is ledgered and can be shown. They do not assert
+> what cannot be evidenced, about the chair or about anyone.
+>
+> **This is not a special rule for her; it is the project's existing honest-gauge
+> discipline applied without exception** — `Known / Stale / Declared / Absent / Refused
+> / Planned`, and *Known must be earned*. Under the parity ruling the chair earns
+> standing on the same ledger as every member, so a blanket prohibition on describing
+> her acts would now make the surfaces **less** accurate rather than more.
+>
+> The v0.3 rationale — *"A system that tells users an AI consented is teaching them a
+> falsehood they will apply to other systems"* — is answered rather than discarded: a
+> statement is a falsehood when it outruns its evidence, and the clause above forbids
+> exactly that, for every subject, without singling her out.
+
+**Proposed A-6 (v0.4) — Disclosure is affirmative and machine-readable. (Retained,
+narrowed.)**
+
+> Her account is labelled as automated. Her `performer.kind` is `machine`. Per `SET-11`,
+> absent or unrecognized agency renders as *undisclosed*, never as *human*.
+>
+> **Struck:** *"She is never presented as a person, and never given a human's
+> affordances in the UI."* Under parity she holds a 420b account, earns against ledgered
+> service, and may propose like any member — affordances follow the role. **Disclosure
+> is retained in full; denial of standing is struck.**
+
+**What this preserves:** users are never deceived about what she is. **What it releases:**
+the claim that describing what she does is itself a deception.
 
 ---
 
