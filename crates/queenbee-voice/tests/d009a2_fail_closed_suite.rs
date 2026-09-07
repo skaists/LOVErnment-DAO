@@ -14,14 +14,14 @@
 
 #![forbid(unsafe_code)]
 
+use queenbee_voice::adapter::tree_landing::CommitFacts;
+use queenbee_voice::heartbeat::HeartbeatState;
 use queenbee_voice::pds::live_client::{
     AuditRecord, AuditRecordSource, LivePdsClient, NoopXrpcTransport, RecordsPage,
 };
 use queenbee_voice::pipeline::{
     AuditEntry, Clock, Hasher, PdsClient, PendingEntry, Pipeline, PipelineResult, ScanError,
 };
-use queenbee_voice::adapter::tree_landing::CommitFacts;
-use queenbee_voice::heartbeat::HeartbeatState;
 use queenbee_voice::wrapper::DailyCounter;
 use std::cell::RefCell;
 
@@ -228,11 +228,7 @@ impl PdsClient for ScanTestPds {
         self.scan_result.clone()
     }
 
-    fn create_pending_entry(
-        &mut self,
-        key: &str,
-        _entry: &PendingEntry,
-    ) -> Result<(), String> {
+    fn create_pending_entry(&mut self, key: &str, _entry: &PendingEntry) -> Result<(), String> {
         // Ruling B (D-009c): the rkey must be a tid, never the derivationInput.
         assert!(
             !key.contains('/') && !key.contains('@'),
@@ -250,7 +246,13 @@ impl PdsClient for ScanTestPds {
         ))
     }
 
-    fn finalize_entry(&mut self, _key: &str, _entry: &PendingEntry, _uri: &str, _cid: &str) -> Result<(), String> {
+    fn finalize_entry(
+        &mut self,
+        _key: &str,
+        _entry: &PendingEntry,
+        _uri: &str,
+        _cid: &str,
+    ) -> Result<(), String> {
         Ok(())
     }
 
@@ -311,9 +313,7 @@ fn transport_err_mid_scan_returns_err() {
 
 #[test]
 fn transport_err_first_page_returns_err() {
-    let source = MockSource::new(vec![
-        Err("timeout".to_string()),
-    ]);
+    let source = MockSource::new(vec![Err("timeout".to_string())]);
 
     let client = LivePdsClient::new(source, NoopXrpcTransport::default());
     let result = client.find_entry_by_derivation_input(QUERY);
@@ -331,15 +331,13 @@ fn transport_err_first_page_returns_err() {
 
 #[test]
 fn matching_but_partial_record_blocks() {
-    let source = MockSource::new(vec![
-        Ok(RecordsPage {
-            records: vec![rec(
-                "tid-partial-1",
-                partial_record_value_missing_created_at(QUERY),
-            )],
-            cursor: None,
-        }),
-    ]);
+    let source = MockSource::new(vec![Ok(RecordsPage {
+        records: vec![rec(
+            "tid-partial-1",
+            partial_record_value_missing_created_at(QUERY),
+        )],
+        cursor: None,
+    })]);
 
     let client = LivePdsClient::new(source, NoopXrpcTransport::default());
     let result = client.find_entry_by_derivation_input(QUERY);
@@ -413,10 +411,7 @@ fn pipeline_scan_clear_proceeds_to_post() {
         matches!(result, PipelineResult::Success { .. }),
         "clear scan must proceed to post. Got {result:?}"
     );
-    assert!(
-        pds.submitted.borrow().is_some(),
-        "must post on clear scan"
-    );
+    assert!(pds.submitted.borrow().is_some(), "must post on clear scan");
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -467,15 +462,10 @@ fn cursor_exhaustion_entry_on_page_3() {
 
 #[test]
 fn pending_entry_for_input_is_returned() {
-    let source = MockSource::new(vec![
-        Ok(RecordsPage {
-            records: vec![rec(
-                "tid-pending-1",
-                record_value(QUERY, None, None, None),
-            )],
-            cursor: None,
-        }),
-    ]);
+    let source = MockSource::new(vec![Ok(RecordsPage {
+        records: vec![rec("tid-pending-1", record_value(QUERY, None, None, None))],
+        cursor: None,
+    })]);
 
     let client = LivePdsClient::new(source, NoopXrpcTransport::default());
     let result = client.find_entry_by_derivation_input(QUERY).unwrap();
@@ -492,20 +482,18 @@ fn pending_entry_for_input_is_returned() {
 
 #[test]
 fn finalized_entry_for_input_is_returned() {
-    let source = MockSource::new(vec![
-        Ok(RecordsPage {
-            records: vec![rec(
-                "tid-finalized-1",
-                record_value(
-                    QUERY,
-                    Some("at://did:plc:test/app.bsky.feed.post/abc"),
-                    Some("bafyrei_cid123"),
-                    None,
-                ),
-            )],
-            cursor: None,
-        }),
-    ]);
+    let source = MockSource::new(vec![Ok(RecordsPage {
+        records: vec![rec(
+            "tid-finalized-1",
+            record_value(
+                QUERY,
+                Some("at://did:plc:test/app.bsky.feed.post/abc"),
+                Some("bafyrei_cid123"),
+                None,
+            ),
+        )],
+        cursor: None,
+    })]);
 
     let client = LivePdsClient::new(source, NoopXrpcTransport::default());
     let result = client.find_entry_by_derivation_input(QUERY).unwrap();
@@ -565,18 +553,16 @@ fn genuine_absence_all_pages_exhausted_returns_ok_none() {
 
 #[test]
 fn field_discipline_rkey_not_match_field() {
-    let source = MockSource::new(vec![
-        Ok(RecordsPage {
-            records: vec![
-                // rkey matches QUERY, but derivationInput does NOT.
-                rec(
-                    QUERY,
-                    record_value("different/repo@differentSha", None, None, None),
-                ),
-            ],
-            cursor: None,
-        }),
-    ]);
+    let source = MockSource::new(vec![Ok(RecordsPage {
+        records: vec![
+            // rkey matches QUERY, but derivationInput does NOT.
+            rec(
+                QUERY,
+                record_value("different/repo@differentSha", None, None, None),
+            ),
+        ],
+        cursor: None,
+    })]);
 
     let client = LivePdsClient::new(source, NoopXrpcTransport::default());
     let result = client.find_entry_by_derivation_input(QUERY).unwrap();
@@ -593,12 +579,10 @@ fn field_discipline_rkey_not_match_field() {
 
 #[test]
 fn empty_collection_returns_ok_none() {
-    let source = MockSource::new(vec![
-        Ok(RecordsPage {
-            records: vec![],
-            cursor: None,
-        }),
-    ]);
+    let source = MockSource::new(vec![Ok(RecordsPage {
+        records: vec![],
+        cursor: None,
+    })]);
 
     let client = LivePdsClient::new(source, NoopXrpcTransport::default());
     let result = client.find_entry_by_derivation_input(QUERY).unwrap();
@@ -622,10 +606,7 @@ fn positive_multi_page_finds_exact_entry() {
             cursor: Some("page-2".to_string()),
         }),
         Ok(RecordsPage {
-            records: vec![rec(
-                "tid-c",
-                record_value("repo-c@sha-c", None, None, None),
-            )],
+            records: vec![rec("tid-c", record_value("repo-c@sha-c", None, None, None))],
             cursor: Some("page-3".to_string()),
         }),
         Ok(RecordsPage {
@@ -695,9 +676,8 @@ fn pagination_bound_cyclic_cursor_returns_indeterminate() {
     //
     // Since we can't change MAX_PAGES for tests easily (it's a const),
     // and 1000 iterations is fast enough, we run it.
-    let responses: Vec<Result<RecordsPage, String>> = (0..1001)
-        .map(|_| cyclic_page.clone())
-        .collect();
+    let responses: Vec<Result<RecordsPage, String>> =
+        (0..1001).map(|_| cyclic_page.clone()).collect();
 
     let source = MockSource::new(responses);
     let client = LivePdsClient::new(source, NoopXrpcTransport::default());
@@ -722,20 +702,18 @@ fn pagination_bound_cyclic_cursor_returns_indeterminate() {
 fn canonical_derivation_input_exact_match_no_normalization() {
     // derivationInput = "repo@sha" — canonical by construction.
     // The scan uses exact-string ==. Case/whitespace skew does not match.
-    let source = MockSource::new(vec![
-        Ok(RecordsPage {
-            records: vec![
-                // Same derivationInput but UPPERCASE — must NOT match.
-                rec(
-                    "tid-upper",
-                    record_value("SKAISTS/LOVErnment-DAO@884B2BCE", None, None, None),
-                ),
-                // Exact match — MUST match.
-                rec("tid-exact", record_value(QUERY, None, None, None)),
-            ],
-            cursor: None,
-        }),
-    ]);
+    let source = MockSource::new(vec![Ok(RecordsPage {
+        records: vec![
+            // Same derivationInput but UPPERCASE — must NOT match.
+            rec(
+                "tid-upper",
+                record_value("SKAISTS/LOVErnment-DAO@884B2BCE", None, None, None),
+            ),
+            // Exact match — MUST match.
+            rec("tid-exact", record_value(QUERY, None, None, None)),
+        ],
+        cursor: None,
+    })]);
 
     let client = LivePdsClient::new(source, NoopXrpcTransport::default());
     let result = client.find_entry_by_derivation_input(QUERY).unwrap();
@@ -743,4 +721,3 @@ fn canonical_derivation_input_exact_match_no_normalization() {
     let entry = result.expect("exact-string match must find the canonical entry");
     assert_eq!(entry.pending.derivation_input, QUERY);
 }
-

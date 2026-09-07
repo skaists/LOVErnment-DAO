@@ -122,11 +122,22 @@ fn d001_performance_set_putrecord_roundtrip_live() {
     // never logged.
     let session = ureq::post(&format!("{pds}/xrpc/com.atproto.server.createSession"))
         .send_json(json!({ "identifier": handle, "password": password }))
-        .unwrap_or_else(|e| panic!("createSession failed: {} (check handle / app password / PDS URL)", describe(e)))
+        .unwrap_or_else(|e| {
+            panic!(
+                "createSession failed: {} (check handle / app password / PDS URL)",
+                describe(e)
+            )
+        })
         .into_json::<Value>()
         .expect("createSession: response was not JSON");
-    let did = session["did"].as_str().expect("createSession: no did").to_string();
-    let jwt = session["accessJwt"].as_str().expect("createSession: no accessJwt").to_string();
+    let did = session["did"]
+        .as_str()
+        .expect("createSession: no did")
+        .to_string();
+    let jwt = session["accessJwt"]
+        .as_str()
+        .expect("createSession: no accessJwt")
+        .to_string();
 
     // (2 cont.) putRecord. key: tid -> mint the rkey. validate=false: the PDS
     // does not carry the skaists lexicon; the assertions below are the validator.
@@ -160,7 +171,10 @@ fn d001_performance_set_putrecord_roundtrip_live() {
 
         // (3) Equivalence per the spec: what the PDS stored round-trips to what
         // we wrote (serde_json object comparison is order-independent).
-        assert_eq!(value, &record, "round-trip value diverged from the written record");
+        assert_eq!(
+            value, &record,
+            "round-trip value diverged from the written record"
+        );
         println!("D-001 getRecord  -> equivalence OK");
 
         // (4) SET-4, quoted verbatim from specs/SPEC-performance-set.md:
@@ -183,7 +197,10 @@ fn d001_performance_set_putrecord_roundtrip_live() {
         .send_json(json!({ "repo": did, "collection": COLLECTION, "rkey": rkey }))
     {
         Ok(_) => println!("D-001 deleteRecord -> {uri} (self-cleaned)"),
-        Err(e) => eprintln!("WARNING: deleteRecord failed ({}); record may persist at {uri}", describe(e)),
+        Err(e) => eprintln!(
+            "WARNING: deleteRecord failed ({}); record may persist at {uri}",
+            describe(e)
+        ),
     }
 
     if let Err(p) = outcome {
@@ -206,7 +223,9 @@ fn assert_set4(value: &Value) {
             continue; // cueTime absent -> SET-4 does not bite for this item.
         };
         let played = OffsetDateTime::parse(
-            item["play"]["playedTime"].as_str().expect("playedTime missing"),
+            item["play"]["playedTime"]
+                .as_str()
+                .expect("playedTime missing"),
             &Rfc3339,
         )
         .expect("playedTime not RFC3339");

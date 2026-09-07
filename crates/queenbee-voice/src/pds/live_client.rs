@@ -19,7 +19,7 @@
 //! boundary (pipeline `run()` constructs it). The read path uses
 //! exact-string `==` with no normalization — no guessing at equivalence.
 
-use crate::pipeline::{AuditEntry, PendingEntry, PdsClient, ScanError};
+use crate::pipeline::{AuditEntry, PdsClient, PendingEntry, ScanError};
 
 // ─── HTTP boundary ──────────────────────────────────────────────
 
@@ -184,14 +184,8 @@ fn parse_audit_entry_strict(record: &AuditRecord) -> Option<AuditEntry> {
             prompt_digest: v.get("promptDigest")?.as_str()?.to_string(),
             created_at: v.get("createdAt")?.as_str()?.to_string(),
         },
-        post_uri: v
-            .get("postUri")
-            .and_then(|v| v.as_str())
-            .map(String::from),
-        post_cid: v
-            .get("postCid")
-            .and_then(|v| v.as_str())
-            .map(String::from),
+        post_uri: v.get("postUri").and_then(|v| v.as_str()).map(String::from),
+        post_cid: v.get("postCid").and_then(|v| v.as_str()).map(String::from),
         failure_error: v
             .get("failureError")
             .and_then(|v| v.as_str())
@@ -243,14 +237,8 @@ fn parse_audit_entry_best_effort(record: &AuditRecord) -> AuditEntry {
                 .unwrap_or("")
                 .to_string(),
         },
-        post_uri: v
-            .get("postUri")
-            .and_then(|v| v.as_str())
-            .map(String::from),
-        post_cid: v
-            .get("postCid")
-            .and_then(|v| v.as_str())
-            .map(String::from),
+        post_uri: v.get("postUri").and_then(|v| v.as_str()).map(String::from),
+        post_cid: v.get("postCid").and_then(|v| v.as_str()).map(String::from),
         failure_error: v
             .get("failureError")
             .and_then(|v| v.as_str())
@@ -373,7 +361,13 @@ impl<S: AuditRecordSource, T: XrpcTransport> PdsClient for LivePdsClient<S, T> {
         Ok((uri, cid))
     }
 
-    fn finalize_entry(&mut self, key: &str, entry: &PendingEntry, uri: &str, cid: &str) -> Result<(), String> {
+    fn finalize_entry(
+        &mut self,
+        key: &str,
+        entry: &PendingEntry,
+        uri: &str,
+        cid: &str,
+    ) -> Result<(), String> {
         // Carry-forward (D-009b2): putRecord the FULL record — all pending
         // fields plus postUri/postCid. The prior implementation wrote only
         // {$type, postUri, postCid}, a replace that stripped derivationInput

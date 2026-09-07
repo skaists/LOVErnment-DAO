@@ -79,8 +79,11 @@ impl PdsClient for DurableMockPds {
         // Ruling B (D-009c): scan by the derivationInput FIELD — the store is
         // keyed by tid rkey, never by derivationInput. This mirrors the real
         // client's field scan and keeps the durable lock intact.
-        Ok(self.store.borrow().values().find_map(
-            |(pending, uri, cid, failure_error)| {
+        Ok(self
+            .store
+            .borrow()
+            .values()
+            .find_map(|(pending, uri, cid, failure_error)| {
                 if pending.derivation_input == derivation_input {
                     Some(AuditEntry {
                         pending: pending.clone(),
@@ -91,8 +94,7 @@ impl PdsClient for DurableMockPds {
                 } else {
                     None
                 }
-            },
-        ))
+            }))
     }
 
     fn create_pending_entry(&mut self, key: &str, entry: &PendingEntry) -> Result<(), String> {
@@ -115,7 +117,13 @@ impl PdsClient for DurableMockPds {
         )))
     }
 
-    fn finalize_entry(&mut self, key: &str, _entry: &PendingEntry, uri: &str, cid: &str) -> Result<(), String> {
+    fn finalize_entry(
+        &mut self,
+        key: &str,
+        _entry: &PendingEntry,
+        uri: &str,
+        cid: &str,
+    ) -> Result<(), String> {
         let result = self.finalize_result.clone().unwrap_or(Ok(()));
         if result.is_ok() {
             if let Some(entry) = self.store.borrow_mut().get_mut(key) {
@@ -304,10 +312,7 @@ fn wrapper_refused_writes_neither() {
         pds.submitted.borrow().is_none(),
         "nothing submitted on refusal"
     );
-    assert!(
-        pds.store.borrow().is_empty(),
-        "no pending entry on refusal"
-    );
+    assert!(pds.store.borrow().is_empty(), "no pending entry on refusal");
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -336,7 +341,10 @@ fn post_failure_marks_entry_failed_survives() {
     );
     // The entry MUST survive — the lock outlives any non-success terminal.
     assert!(
-        pds.store.borrow().values().any(|e| e.0.derivation_input == DERIVATION_KEY),
+        pds.store
+            .borrow()
+            .values()
+            .any(|e| e.0.derivation_input == DERIVATION_KEY),
         "entry must SURVIVE post failure — the durable lock"
     );
     // The entry MUST be marked failed.
@@ -376,19 +384,21 @@ fn finalize_failure_leaves_pending_entry_alive() {
     );
 
     match result {
-        PipelineResult::FinalizeFailed { post_uri, post_cid, .. } => {
+        PipelineResult::FinalizeFailed {
+            post_uri, post_cid, ..
+        } => {
             assert_eq!(post_uri, "at://did:plc:test/app.bsky.feed.post/tid1");
             assert_eq!(post_cid, "bafyrei_fake_cid");
         }
         other => panic!("expected FinalizeFailed, got {other:?}"),
     }
-    assert!(
-        pds.submitted.borrow().is_some(),
-        "post must be live"
-    );
+    assert!(pds.submitted.borrow().is_some(), "post must be live");
     // The pending entry MUST survive — detectable honesty.
     assert!(
-        pds.store.borrow().values().any(|e| e.0.derivation_input == DERIVATION_KEY),
+        pds.store
+            .borrow()
+            .values()
+            .any(|e| e.0.derivation_input == DERIVATION_KEY),
         "pending entry must survive finalize failure"
     );
     let binding = pds.store.borrow();
@@ -640,7 +650,10 @@ fn r3_submit_error_survives_rerun_refuses() {
 
     // The entry SURVIVED in the store (marked failed, not removed).
     assert!(
-        pds.store.borrow().values().any(|e| e.0.derivation_input == DERIVATION_KEY),
+        pds.store
+            .borrow()
+            .values()
+            .any(|e| e.0.derivation_input == DERIVATION_KEY),
         "entry must survive post failure — the durable lock"
     );
 

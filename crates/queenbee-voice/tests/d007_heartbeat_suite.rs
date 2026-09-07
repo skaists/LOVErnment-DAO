@@ -41,20 +41,14 @@ fn fresh_beat_is_alive() {
 fn twenty_one_days_minus_one_second_alive() {
     let beat = Duration::ZERO;
     let now = HEARTBEAT_INTERVAL - SEC;
-    assert!(
-        is_alive(beat, now),
-        "21d − 1s must be alive"
-    );
+    assert!(is_alive(beat, now), "21d − 1s must be alive");
 }
 
 #[test]
 fn twenty_one_days_plus_one_second_stale() {
     let beat = Duration::ZERO;
     let now = HEARTBEAT_INTERVAL + SEC;
-    assert!(
-        !is_alive(beat, now),
-        "21d + 1s must be stale"
-    );
+    assert!(!is_alive(beat, now), "21d + 1s must be stale");
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -127,8 +121,5 @@ fn no_payload_when_already_alive() {
     let (state, payload) = check_transition(HeartbeatState::Alive, beat, now);
 
     assert_eq!(state, HeartbeatState::Alive);
-    assert!(
-        payload.is_none(),
-        "no transition → no payload"
-    );
+    assert!(payload.is_none(), "no transition → no payload");
 }

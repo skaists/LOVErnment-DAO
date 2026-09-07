@@ -10,7 +10,7 @@
 
 pub mod adapter;
 pub mod ceremony;
-pub mod wrapper;
 pub mod heartbeat;
-pub mod pipeline;
 pub mod pds;
+pub mod pipeline;
+pub mod wrapper;
