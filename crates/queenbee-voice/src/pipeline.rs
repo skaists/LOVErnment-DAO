@@ -137,7 +137,13 @@ pub trait PdsClient {
     ) -> Result<Option<AuditEntry>, ScanError>;
     fn create_pending_entry(&mut self, key: &str, entry: &PendingEntry) -> Result<(), String>;
     fn submit_post(&mut self, text: &str) -> Result<(String, String), String>;
-    fn finalize_entry(&mut self, key: &str, entry: &PendingEntry, uri: &str, cid: &str) -> Result<(), String>;
+    fn finalize_entry(
+        &mut self,
+        key: &str,
+        entry: &PendingEntry,
+        uri: &str,
+        cid: &str,
+    ) -> Result<(), String>;
     fn remove_entry(&mut self, key: &str) -> Result<(), String>;
     fn mark_entry_failed(&mut self, key: &str, error: &str) -> Result<(), String>;
 }
@@ -158,7 +164,11 @@ pub enum PipelineResult {
     PostFailed { error: String },
     /// Post live but entry finalization failed. Pending entry remains,
     /// visibly incomplete — detectable honesty.
-    FinalizeFailed { post_uri: String, post_cid: String, error: String },
+    FinalizeFailed {
+        post_uri: String,
+        post_cid: String,
+        error: String,
+    },
     /// Same derivation_input already in the audit trail or in-process mark.
     /// Clearance is a founder act, out of code's reach.
     Duplicate,
@@ -177,11 +187,7 @@ pub struct Pipeline {
 }
 
 impl Pipeline {
-    pub fn new(
-        adapter_digest: String,
-        model_digest: String,
-        prompt_digest: String,
-    ) -> Self {
+    pub fn new(adapter_digest: String, model_digest: String, prompt_digest: String) -> Self {
         Self {
             seen: HashSet::new(),
             adapter_digest,
@@ -198,8 +204,7 @@ impl Pipeline {
     /// signature_verified). The same facts always produce the same bytes.
     /// Pinned by a test vector in the suite.
     pub fn canonical_facts_json(facts: &CommitFacts) -> String {
-        serde_json::to_string(facts)
-            .expect("CommitFacts is always serializable")
+        serde_json::to_string(facts).expect("CommitFacts is always serializable")
     }
 
     /// Run the pipeline on one commit's facts.

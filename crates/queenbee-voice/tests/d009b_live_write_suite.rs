@@ -15,9 +15,7 @@ use queenbee_voice::heartbeat::HeartbeatState;
 use queenbee_voice::pds::live_client::{
     AuditRecord, AuditRecordSource, LivePdsClient, RecordsPage, XrpcTransport,
 };
-use queenbee_voice::pipeline::{
-    Clock, Hasher, PendingEntry, PdsClient, Pipeline, PipelineResult,
-};
+use queenbee_voice::pipeline::{Clock, Hasher, PdsClient, PendingEntry, Pipeline, PipelineResult};
 use queenbee_voice::wrapper::DailyCounter;
 use std::cell::RefCell;
 
@@ -186,23 +184,16 @@ fn create_pending_entry_happy_correct_put_record_shape() {
     match &calls[0] {
         XrpcCall::PutRecord(body) => {
             assert_eq!(
-                body["collection"],
-                "social.skaists.alpha.audit.entry",
+                body["collection"], "social.skaists.alpha.audit.entry",
                 "collection must be the audit-entry NSID"
             );
             assert_eq!(body["rkey"], "test-key", "rkey must be the entry key");
             let record = &body["record"];
-            assert_eq!(
-                record["derivationInput"],
-                "skaists/LOVErnment-DAO@884b2bce"
-            );
+            assert_eq!(record["derivationInput"], "skaists/LOVErnment-DAO@884b2bce");
             assert_eq!(record["inputDigest"], "test_digest");
             assert_eq!(record["adapterClass"], "TreeLanding");
             assert!(record["postUri"].is_null(), "pending must not have postUri");
-            assert!(
-                record["postCid"].is_null(),
-                "pending must not have postCid"
-            );
+            assert!(record["postCid"].is_null(), "pending must not have postCid");
             assert!(
                 record["failureError"].is_null(),
                 "pending must not have failureError"
@@ -285,8 +276,7 @@ fn submit_post_timeout_returns_err() {
 
 #[test]
 fn submit_post_5xx_returns_err() {
-    let transport =
-        MockXrpcTransport::new(vec![Err("HTTP 503: service unavailable".to_string())]);
+    let transport = MockXrpcTransport::new(vec![Err("HTTP 503: service unavailable".to_string())]);
     let mut client = LivePdsClient::new(EmptySource, transport);
 
     let result = client.submit_post("hello world");
@@ -323,8 +313,7 @@ fn finalize_entry_happy_correct_put_record() {
             let record = &body["record"];
             // D-009b2: ALL pending fields must survive finalize (carry-forward).
             assert_eq!(
-                record["derivationInput"],
-                "skaists/LOVErnment-DAO@884b2bce",
+                record["derivationInput"], "skaists/LOVErnment-DAO@884b2bce",
                 "derivationInput must be preserved on finalize"
             );
             assert_eq!(record["inputDigest"], "test_digest");
@@ -338,7 +327,10 @@ fn finalize_entry_happy_correct_put_record() {
                 "at://did:plc:test/app.bsky.feed.post/abc"
             );
             assert_eq!(record["postCid"], "bafyrei_cid");
-            assert!(record["failureError"].is_null(), "failureError must be null on finalize");
+            assert!(
+                record["failureError"].is_null(),
+                "failureError must be null on finalize"
+            );
         }
         other => panic!("expected PutRecord, got {other:?}"),
     }
@@ -376,8 +368,9 @@ fn mark_entry_failed_happy_sets_error_no_delete() {
 
 #[test]
 fn xrpc_4xx_returns_err_not_panic() {
-    let transport =
-        MockXrpcTransport::new(vec![Err("HTTP 400: Bad Request — invalid record".to_string())]);
+    let transport = MockXrpcTransport::new(vec![Err(
+        "HTTP 400: Bad Request — invalid record".to_string()
+    )]);
     let mut client = LivePdsClient::new(EmptySource, transport);
     let pending = make_pending();
 
@@ -427,11 +420,7 @@ impl PdsClient for RemoveTracker {
         Ok(None) // clear to proceed
     }
 
-    fn create_pending_entry(
-        &mut self,
-        _key: &str,
-        _entry: &PendingEntry,
-    ) -> Result<(), String> {
+    fn create_pending_entry(&mut self, _key: &str, _entry: &PendingEntry) -> Result<(), String> {
         if self.create_pending_ok {
             Ok(())
         } else {
@@ -450,7 +439,13 @@ impl PdsClient for RemoveTracker {
         }
     }
 
-    fn finalize_entry(&mut self, _key: &str, _entry: &PendingEntry, _uri: &str, _cid: &str) -> Result<(), String> {
+    fn finalize_entry(
+        &mut self,
+        _key: &str,
+        _entry: &PendingEntry,
+        _uri: &str,
+        _cid: &str,
+    ) -> Result<(), String> {
         if self.finalize_ok {
             Ok(())
         } else {
@@ -637,8 +632,8 @@ fn positive_integration_full_run_xrpc_sequence() {
 //  and its cure at the XRPC boundary where it lives.
 // ═══════════════════════════════════════════════════════════════
 
-use std::rc::Rc;
 use std::collections::HashMap as StdHashMap;
+use std::rc::Rc;
 
 /// Shared backing store: records keyed by rkey. Both the read
 /// source and write transport reference the same Rc<RefCell<...>>,
@@ -716,8 +711,12 @@ impl XrpcTransport for RoundTripTransport {
 fn d009b2_marquee_red_1_lock_survives_success() {
     let store = RoundTripStore::default();
     let mut client = LivePdsClient::new(
-        RoundTripSource { store: store.clone() },
-        RoundTripTransport { store: store.clone() },
+        RoundTripSource {
+            store: store.clone(),
+        },
+        RoundTripTransport {
+            store: store.clone(),
+        },
     );
     let pending = make_pending();
 
@@ -748,12 +747,19 @@ fn d009b2_marquee_red_1_lock_survives_success() {
     );
 
     assert_eq!(
-        entry.pending.derivation_input,
-        pending.derivation_input,
+        entry.pending.derivation_input, pending.derivation_input,
         "derivationInput must be intact after finalize"
     );
-    assert_eq!(entry.post_uri.as_deref(), Some(uri.as_str()), "postUri must be set");
-    assert_eq!(entry.post_cid.as_deref(), Some(cid.as_str()), "postCid must be set");
+    assert_eq!(
+        entry.post_uri.as_deref(),
+        Some(uri.as_str()),
+        "postUri must be set"
+    );
+    assert_eq!(
+        entry.post_cid.as_deref(),
+        Some(cid.as_str()),
+        "postCid must be set"
+    );
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -773,8 +779,12 @@ fn d009b2_marquee_red_2_no_repost_after_finalize_restart() {
     // --- Pipeline A: run to success ---
     {
         let mut client = LivePdsClient::new(
-            RoundTripSource { store: store.clone() },
-            RoundTripTransport { store: store.clone() },
+            RoundTripSource {
+                store: store.clone(),
+            },
+            RoundTripTransport {
+                store: store.clone(),
+            },
         );
         let mut pipeline = make_pipeline();
         let mut counter = MockCounter { count: 0 };
@@ -797,8 +807,12 @@ fn d009b2_marquee_red_2_no_repost_after_finalize_restart() {
     // --- Pipeline B: fresh pipeline, same store, empty seen ---
     {
         let mut client = LivePdsClient::new(
-            RoundTripSource { store: store.clone() },
-            RoundTripTransport { store: store.clone() },
+            RoundTripSource {
+                store: store.clone(),
+            },
+            RoundTripTransport {
+                store: store.clone(),
+            },
         );
         let mut fresh_pipeline = make_pipeline();
         let mut counter_b = MockCounter { count: 0 };

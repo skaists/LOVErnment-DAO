@@ -172,5 +172,8 @@ fn stale_heartbeat_refused() {
         SubmitResult::Stale,
         "stale heartbeat must suspend posting"
     );
-    assert_eq!(counter.count, 0, "counter must NOT increment on stale refusal");
+    assert_eq!(
+        counter.count, 0,
+        "counter must NOT increment on stale refusal"
+    );
 }

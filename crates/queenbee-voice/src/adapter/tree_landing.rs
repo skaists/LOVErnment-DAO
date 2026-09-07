@@ -14,10 +14,7 @@ use serde::{Deserialize, Serialize};
 /// The allowlist of repos that class-1 (TreeLanding) may announce.
 /// Adding a repo here is a founder gate per Q-8 / VOICE-1 §6 G-C.
 // PUBLIC-CONSTANT
-pub const CLASS1_ALLOWLIST: &[&str] = &[
-    "skaists/LOVErnment-DAO",
-    "beehive-nature/beehive-nature",
-];
+pub const CLASS1_ALLOWLIST: &[&str] = &["skaists/LOVErnment-DAO", "beehive-nature/beehive-nature"];
 
 /// The fixed character limit for the subject in the post template.
 const SUBJECT_LIMIT: usize = 120;

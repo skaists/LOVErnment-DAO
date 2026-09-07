@@ -100,8 +100,8 @@ pub fn validate_set(record: &Value) -> Vec<Rule> {
         .filter_map(|item| item.get("position").and_then(|p| p.as_i64()))
         .collect();
     positions.sort_unstable();
-    let set1_ok = !positions.is_empty()
-        && positions.iter().enumerate().all(|(i, &p)| p == i as i64);
+    let set1_ok =
+        !positions.is_empty() && positions.iter().enumerate().all(|(i, &p)| p == i as i64);
     if !set1_ok {
         v.push(Rule::Set1);
     }

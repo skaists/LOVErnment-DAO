@@ -210,8 +210,7 @@ fn set5_fm_teal_at_uri() {
     // structure, not by substring search.
 
     let mut record = minimal_valid_set();
-    record["tealPlayRef"] =
-        json!("at://did:plc:abc/fm.teal.alpha.feed.play/tidXYZ");
+    record["tealPlayRef"] = json!("at://did:plc:abc/fm.teal.alpha.feed.play/tidXYZ");
 
     let violations = validate_set(&record);
     assert!(
